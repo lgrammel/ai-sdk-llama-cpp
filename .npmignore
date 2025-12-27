@@ -1,0 +1,53 @@
+# Exclude unnecessary llama.cpp directories
+llama.cpp/docs/
+llama.cpp/examples/
+llama.cpp/tests/
+llama.cpp/tools/
+llama.cpp/models/
+llama.cpp/scripts/
+llama.cpp/benches/
+llama.cpp/ci/
+llama.cpp/media/
+llama.cpp/pocs/
+llama.cpp/gguf-py/
+llama.cpp/grammars/
+llama.cpp/requirements/
+llama.cpp/licenses/
+
+# Exclude llama.cpp Python files
+llama.cpp/*.py
+llama.cpp/pyproject.toml
+llama.cpp/poetry.lock
+llama.cpp/mypy.ini
+llama.cpp/pyrightconfig.json
+llama.cpp/requirements.txt
+
+# Exclude llama.cpp config files
+llama.cpp/.gitignore
+llama.cpp/.gitmodules
+llama.cpp/.clang-format
+llama.cpp/.editorconfig
+llama.cpp/flake.lock
+llama.cpp/flake.nix
+llama.cpp/CMakePresets.json
+llama.cpp/CODEOWNERS
+llama.cpp/CONTRIBUTING.md
+llama.cpp/SECURITY.md
+llama.cpp/Makefile
+
+# Exclude build artifacts
+build/
+*.node
+
+# Exclude development files
+src/
+tsconfig.json
+examples/
+models/
+node_modules/
+
+# Exclude git files
+.git/
+.gitignore
+.gitmodules
+

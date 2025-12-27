@@ -13,15 +13,18 @@
   },
   "files": [
     "dist",
-    "build/Release/*.node"
+    "native",
+    "llama.cpp",
+    "scripts",
+    "CMakeLists.txt"
   ],
   "scripts": {
+    "postinstall": "node scripts/postinstall.js",
     "build:native": "cmake-js compile",
     "build:native:debug": "cmake-js compile --debug",
     "build:ts": "tsc",
     "build": "npm run build:native && npm run build:ts",
-    "clean": "rm -rf dist build",
-    "prepublishOnly": "npm run build"
+    "clean": "rm -rf dist build"
   },
   "keywords": [
     "ai",
@@ -38,13 +41,13 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^3.0.0"
+    "@ai-sdk/provider": "^3.0.0",
+    "node-addon-api": "^8.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "ai": "^6.0.3",
     "cmake-js": "^7.3.0",
-    "node-addon-api": "^8.0.0",
     "tsx": "^4.21.0",
     "typescript": "^5.3.0"
   },

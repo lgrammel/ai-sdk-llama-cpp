@@ -1,5 +1,7 @@
 # ai-sdk-llama-cpp
 
+> **macOS Only** - This package currently only supports macOS with Apple Silicon or Intel processors.
+
 A minimal [llama.cpp](https://github.com/ggerganov/llama.cpp) provider for the [Vercel AI SDK](https://sdk.vercel.ai/), implementing the `LanguageModelV1` interface.
 
 This package loads llama.cpp directly into Node.js memory via native C++ bindings, enabling local LLM inference without requiring an external server.
@@ -7,7 +9,7 @@ This package loads llama.cpp directly into Node.js memory via native C++ binding
 ## Features
 
 - **Native Performance**: Direct C++ bindings using node-addon-api (N-API)
-- **GPU Acceleration**: Automatic Metal support on macOS, CUDA support available
+- **GPU Acceleration**: Automatic Metal support on macOS
 - **Streaming & Non-streaming**: Full support for both `generateText` and `streamText`
 - **ESM Only**: Modern ECMAScript modules, no CommonJS
 - **GGUF Support**: Load any GGUF-format model
@@ -16,12 +18,10 @@ This package loads llama.cpp directly into Node.js memory via native C++ binding
 
 Before installing, ensure you have the following:
 
+- **macOS** (Apple Silicon or Intel)
 - **Node.js** >= 18.0.0
 - **CMake** >= 3.15
-- **C++ Compiler**: Clang (macOS), GCC (Linux), or MSVC (Windows)
-- **Python** (for node-gyp)
-
-### macOS
+- **Xcode Command Line Tools**
 
 ```bash
 # Install Xcode Command Line Tools (includes Clang)
@@ -31,28 +31,18 @@ xcode-select --install
 brew install cmake
 ```
 
-### Linux (Ubuntu/Debian)
-
-```bash
-sudo apt-get update
-sudo apt-get install build-essential cmake
-```
-
-### Windows
-
-Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) and [CMake](https://cmake.org/download/).
-
 ## Installation
 
 ```bash
 npm install ai-sdk-llama-cpp
 ```
 
-This will:
-1. Clone the llama.cpp submodule
-2. Compile llama.cpp as a static library
+The installation will automatically:
+1. Detect macOS and verify platform compatibility
+2. Compile llama.cpp as a static library with Metal support
 3. Build the native Node.js addon
-4. Compile the TypeScript source
+
+> **Note**: Installation on Windows or Linux will fail with an error. Only macOS is supported.
 
 ## Usage
 
@@ -175,6 +165,7 @@ Implements the `LanguageModelV1` interface from `@ai-sdk/provider`.
 
 This is a minimal implementation with the following limitations:
 
+- **macOS only**: Windows and Linux are not supported
 - **No tool/function calling**: Tool calls are not supported
 - **No image inputs**: Only text prompts are supported
 - **No JSON mode**: Structured output generation is not supported
