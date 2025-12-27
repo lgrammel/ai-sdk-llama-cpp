@@ -1,8 +1,8 @@
 import { generateText } from "ai";
-import { createLlamaCpp } from "../dist/index.js";
+import { llamaCpp } from "../dist/index.js";
 
 async function main() {
-  const model = createLlamaCpp({
+  const model = llamaCpp({
     modelPath: "./models/gemma-3-12b-it-Q3_K_M.gguf",
     contextSize: 4096,
     // debug: true, // Uncomment to see verbose llama.cpp output

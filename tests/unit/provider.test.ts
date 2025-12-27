@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { createLlamaCpp, LlamaCppLanguageModel } from "../../src/index.js";
+import { llamaCpp, LlamaCppLanguageModel } from "../../src/index.js";
 
-describe("createLlamaCpp", () => {
+describe("llamaCpp", () => {
   describe("return value", () => {
     it("returns an instance of LlamaCppLanguageModel", () => {
-      const model = createLlamaCpp({
+      const model = llamaCpp({
         modelPath: "/path/to/model.gguf",
       });
 
@@ -14,7 +14,7 @@ describe("createLlamaCpp", () => {
 
   describe("config propagation", () => {
     it("sets modelId to the model path", () => {
-      const model = createLlamaCpp({
+      const model = llamaCpp({
         modelPath: "/path/to/my-model.gguf",
       });
 
@@ -22,7 +22,7 @@ describe("createLlamaCpp", () => {
     });
 
     it("passes all config options through", () => {
-      const model = createLlamaCpp({
+      const model = llamaCpp({
         modelPath: "/path/to/model.gguf",
         contextSize: 4096,
         gpuLayers: 32,
@@ -35,7 +35,7 @@ describe("createLlamaCpp", () => {
     });
 
     it("handles minimal config with only modelPath", () => {
-      const model = createLlamaCpp({
+      const model = llamaCpp({
         modelPath: "./models/test.gguf",
       });
 
@@ -46,7 +46,7 @@ describe("createLlamaCpp", () => {
 
   describe("LanguageModelV3 interface", () => {
     it('has specificationVersion "v3"', () => {
-      const model = createLlamaCpp({
+      const model = llamaCpp({
         modelPath: "/path/to/model.gguf",
       });
 
@@ -54,7 +54,7 @@ describe("createLlamaCpp", () => {
     });
 
     it('has provider "llama.cpp"', () => {
-      const model = createLlamaCpp({
+      const model = llamaCpp({
         modelPath: "/path/to/model.gguf",
       });
 
@@ -62,7 +62,7 @@ describe("createLlamaCpp", () => {
     });
 
     it("has empty supportedUrls (local files only)", () => {
-      const model = createLlamaCpp({
+      const model = llamaCpp({
         modelPath: "/path/to/model.gguf",
       });
 
@@ -70,7 +70,7 @@ describe("createLlamaCpp", () => {
     });
 
     it("has doGenerate method", () => {
-      const model = createLlamaCpp({
+      const model = llamaCpp({
         modelPath: "/path/to/model.gguf",
       });
 
@@ -78,7 +78,7 @@ describe("createLlamaCpp", () => {
     });
 
     it("has doStream method", () => {
-      const model = createLlamaCpp({
+      const model = llamaCpp({
         modelPath: "/path/to/model.gguf",
       });
 
@@ -86,7 +86,7 @@ describe("createLlamaCpp", () => {
     });
 
     it("has dispose method", () => {
-      const model = createLlamaCpp({
+      const model = llamaCpp({
         modelPath: "/path/to/model.gguf",
       });
 
@@ -96,10 +96,10 @@ describe("createLlamaCpp", () => {
 
   describe("multiple instances", () => {
     it("creates independent instances", () => {
-      const model1 = createLlamaCpp({
+      const model1 = llamaCpp({
         modelPath: "/path/to/model1.gguf",
       });
-      const model2 = createLlamaCpp({
+      const model2 = llamaCpp({
         modelPath: "/path/to/model2.gguf",
       });
 

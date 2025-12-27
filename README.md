@@ -51,9 +51,9 @@ The installation will automatically:
 
 ```typescript
 import { generateText } from "ai";
-import { createLlamaCpp } from "ai-sdk-llama-cpp";
+import { llamaCpp } from "ai-sdk-llama-cpp";
 
-const model = createLlamaCpp({
+const model = llamaCpp({
   modelPath: "./models/llama-3.2-1b-instruct.Q4_K_M.gguf",
 });
 
@@ -73,9 +73,9 @@ try {
 
 ```typescript
 import { streamText } from "ai";
-import { createLlamaCpp } from "ai-sdk-llama-cpp";
+import { llamaCpp } from "ai-sdk-llama-cpp";
 
-const model = createLlamaCpp({
+const model = llamaCpp({
   modelPath: "./models/llama-3.2-1b-instruct.Q4_K_M.gguf",
 });
 
@@ -96,7 +96,7 @@ try {
 ### Configuration Options
 
 ```typescript
-const model = createLlamaCpp({
+const model = llamaCpp({
   // Required: Path to the GGUF model file
   modelPath: "./models/your-model.gguf",
 
@@ -151,7 +151,7 @@ wget -P models/ https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/reso
 
 ## API Reference
 
-### `createLlamaCpp(config)`
+### `llamaCpp(config)`
 
 Creates a new llama.cpp language model instance.
 

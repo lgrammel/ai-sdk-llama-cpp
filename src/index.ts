@@ -1,5 +1,5 @@
 export {
-  createLlamaCpp,
+  llamaCpp,
   type LlamaCppProviderConfig,
 } from "./llama-cpp-provider.js";
 export {

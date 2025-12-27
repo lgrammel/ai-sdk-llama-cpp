@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { generateText, streamText } from "ai";
-import { createLlamaCpp, LlamaCppLanguageModel } from "../../src/index.js";
+import { llamaCpp, LlamaCppLanguageModel } from "../../src/index.js";
 
 /**
  * E2E tests for the llama.cpp provider.
@@ -26,7 +26,7 @@ describeE2E("E2E Generation Tests", () => {
       throw new Error("TEST_MODEL_PATH environment variable not set");
     }
 
-    model = createLlamaCpp({
+    model = llamaCpp({
       modelPath: TEST_MODEL_PATH,
       contextSize: 2048,
       gpuLayers: 0, // Use CPU for CI compatibility
@@ -245,7 +245,7 @@ describeE2E("E2E Generation Tests", () => {
       async () => {
         if (!TEST_MODEL_PATH) return;
 
-        const model2 = createLlamaCpp({
+        const model2 = llamaCpp({
           modelPath: TEST_MODEL_PATH,
           contextSize: 1024,
         });
@@ -268,7 +268,7 @@ describeE2E("E2E Generation Tests", () => {
       async () => {
         if (!TEST_MODEL_PATH) return;
 
-        const tempModel = createLlamaCpp({
+        const tempModel = llamaCpp({
           modelPath: TEST_MODEL_PATH,
         });
 

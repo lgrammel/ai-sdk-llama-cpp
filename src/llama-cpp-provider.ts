@@ -36,10 +36,10 @@ export interface LlamaCppProviderConfig {
  *
  * @example
  * ```typescript
- * import { createLlamaCpp } from 'ai-sdk-llama-cpp';
+ * import { llamaCpp } from 'ai-sdk-llama-cpp';
  * import { generateText, streamText } from 'ai';
  *
- * const model = createLlamaCpp({
+ * const model = llamaCpp({
  *   modelPath: './models/llama-3.2-1b.gguf'
  * });
  *
@@ -60,7 +60,7 @@ export interface LlamaCppProviderConfig {
  * }
  * ```
  */
-export function createLlamaCpp(
+export function llamaCpp(
   config: LlamaCppProviderConfig
 ): LlamaCppLanguageModel {
   const modelConfig: LlamaCppModelConfig = {
@@ -77,4 +77,4 @@ export function createLlamaCpp(
 /**
  * Default export for convenience.
  */
-export default createLlamaCpp;
+export default llamaCpp;
