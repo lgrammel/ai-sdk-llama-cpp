@@ -38,11 +38,11 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^3.0.0",
-    "ai": "^6.0.3"
+    "@ai-sdk/provider": "^3.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "ai": "^6.0.3",
     "cmake-js": "^7.3.0",
     "node-addon-api": "^8.0.0",
     "tsx": "^4.21.0",
