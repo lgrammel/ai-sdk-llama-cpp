@@ -1,2 +1,217 @@
 # ai-sdk-llama-cpp
-AI SDK Provider for llama.cpp
+
+A minimal [llama.cpp](https://github.com/ggerganov/llama.cpp) provider for the [Vercel AI SDK](https://sdk.vercel.ai/), implementing the `LanguageModelV1` interface.
+
+This package loads llama.cpp directly into Node.js memory via native C++ bindings, enabling local LLM inference without requiring an external server.
+
+## Features
+
+- **Native Performance**: Direct C++ bindings using node-addon-api (N-API)
+- **GPU Acceleration**: Automatic Metal support on macOS, CUDA support available
+- **Streaming & Non-streaming**: Full support for both `generateText` and `streamText`
+- **ESM Only**: Modern ECMAScript modules, no CommonJS
+- **GGUF Support**: Load any GGUF-format model
+
+## Prerequisites
+
+Before installing, ensure you have the following:
+
+- **Node.js** >= 18.0.0
+- **CMake** >= 3.15
+- **C++ Compiler**: Clang (macOS), GCC (Linux), or MSVC (Windows)
+- **Python** (for node-gyp)
+
+### macOS
+
+```bash
+# Install Xcode Command Line Tools (includes Clang)
+xcode-select --install
+
+# Install CMake via Homebrew
+brew install cmake
+```
+
+### Linux (Ubuntu/Debian)
+
+```bash
+sudo apt-get update
+sudo apt-get install build-essential cmake
+```
+
+### Windows
+
+Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) and [CMake](https://cmake.org/download/).
+
+## Installation
+
+```bash
+npm install ai-sdk-llama-cpp
+```
+
+This will:
+1. Clone the llama.cpp submodule
+2. Compile llama.cpp as a static library
+3. Build the native Node.js addon
+4. Compile the TypeScript source
+
+## Usage
+
+### Basic Example
+
+```typescript
+import { generateText, streamText } from 'ai';
+import { createLlamaCpp } from 'ai-sdk-llama-cpp';
+
+// Create a model instance
+const model = createLlamaCpp({
+  modelPath: './models/llama-3.2-1b-instruct.Q4_K_M.gguf'
+});
+
+// Non-streaming generation
+const { text } = await generateText({
+  model,
+  prompt: 'Explain quantum computing in simple terms.'
+});
+
+console.log(text);
+```
+
+### Streaming Example
+
+```typescript
+import { streamText } from 'ai';
+import { createLlamaCpp } from 'ai-sdk-llama-cpp';
+
+const model = createLlamaCpp({
+  modelPath: './models/llama-3.2-1b-instruct.Q4_K_M.gguf'
+});
+
+const { textStream } = await streamText({
+  model,
+  prompt: 'Write a haiku about programming.'
+});
+
+for await (const chunk of textStream) {
+  process.stdout.write(chunk);
+}
+```
+
+### Configuration Options
+
+```typescript
+const model = createLlamaCpp({
+  // Required: Path to the GGUF model file
+  modelPath: './models/your-model.gguf',
+
+  // Optional: Maximum context size (default: 2048)
+  contextSize: 4096,
+
+  // Optional: Number of layers to offload to GPU
+  // Default: 99 (all layers). Set to 0 to disable GPU.
+  gpuLayers: 99,
+
+  // Optional: Number of CPU threads (default: 4)
+  threads: 8
+});
+```
+
+### Generation Parameters
+
+The standard AI SDK generation parameters are supported:
+
+```typescript
+const { text } = await generateText({
+  model,
+  prompt: 'Hello!',
+  maxTokens: 256,        // Maximum tokens to generate
+  temperature: 0.7,      // Sampling temperature (0-2)
+  topP: 0.9,            // Nucleus sampling threshold
+  topK: 40,             // Top-k sampling
+  stopSequences: ['\n'] // Stop generation at these sequences
+});
+```
+
+## Model Downloads
+
+You'll need to download GGUF-format models separately. Popular sources:
+
+- [Hugging Face](https://huggingface.co/models?search=gguf) - Search for GGUF models
+- [TheBloke's Models](https://huggingface.co/TheBloke) - Popular quantized models
+
+Example download:
+
+```bash
+# Create models directory
+mkdir -p models
+
+# Download a model (example: Llama 3.2 1B)
+wget -P models/ https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf
+```
+
+## API Reference
+
+### `createLlamaCpp(config)`
+
+Creates a new llama.cpp language model instance.
+
+**Parameters:**
+- `config.modelPath` (string, required): Path to the GGUF model file
+- `config.contextSize` (number, optional): Maximum context size. Default: 2048
+- `config.gpuLayers` (number, optional): GPU layers to offload. Default: 99
+- `config.threads` (number, optional): CPU threads. Default: 4
+
+**Returns:** `LlamaCppLanguageModel` - A language model compatible with the Vercel AI SDK
+
+### `LlamaCppLanguageModel`
+
+Implements the `LanguageModelV1` interface from `@ai-sdk/provider`.
+
+**Methods:**
+- `doGenerate(options)`: Non-streaming text generation
+- `doStream(options)`: Streaming text generation
+- `dispose()`: Unload the model and free resources
+
+## Limitations
+
+This is a minimal implementation with the following limitations:
+
+- **No tool/function calling**: Tool calls are not supported
+- **No image inputs**: Only text prompts are supported
+- **No JSON mode**: Structured output generation is not supported
+- **Basic prompt formatting**: Uses a simple template format
+
+## Development
+
+### Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/ai-sdk-llama-cpp.git
+cd ai-sdk-llama-cpp
+
+# Initialize submodules
+git submodule update --init --recursive
+
+# Install dependencies
+npm install
+
+# Build the native addon and TypeScript
+npm run build
+```
+
+### Scripts
+
+- `npm run build` - Build everything (native + TypeScript)
+- `npm run build:native` - Build only the native addon
+- `npm run build:ts` - Build only TypeScript
+- `npm run clean` - Remove build artifacts
+
+## License
+
+MIT
+
+## Acknowledgments
+
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) - The underlying inference engine
+- [Vercel AI SDK](https://sdk.vercel.ai/) - The AI SDK framework
+- [node-addon-api](https://github.com/nodejs/node-addon-api) - N-API C++ wrapper
