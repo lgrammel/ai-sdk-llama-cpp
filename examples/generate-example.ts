@@ -37,6 +37,9 @@ async function main() {
     console.log("  Finish reason:", finishReason);
   } catch (error) {
     console.error("Error during generation:", error);
+  } finally {
+    // Properly dispose the model to avoid Metal cleanup errors
+    await model.dispose();
   }
 }
 

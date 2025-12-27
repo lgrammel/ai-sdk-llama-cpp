@@ -30,8 +30,13 @@ async function main() {
     if (!hasOutput) {
       console.log("(No output generated)");
     }
+
+    console.log(); // Add newline after output
   } catch (error) {
     console.error("Error during generation:", error);
+  } finally {
+    // Properly dispose the model to avoid Metal cleanup errors
+    await model.dispose();
   }
 }
 
