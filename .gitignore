@@ -5,6 +5,9 @@ node_modules/
 dist/
 build/
 
+# Downloaded dependencies (cloned during postinstall)
+llama.cpp/
+
 # IDE
 .vscode/
 .idea/

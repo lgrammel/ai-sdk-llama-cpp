@@ -15,18 +15,14 @@
     "dist",
     "native",
     "scripts",
-    "CMakeLists.txt",
-    "llama.cpp/CMakeLists.txt",
-    "llama.cpp/LICENSE",
-    "llama.cpp/cmake",
-    "llama.cpp/common",
-    "llama.cpp/ggml",
-    "llama.cpp/include",
-    "llama.cpp/src",
-    "llama.cpp/vendor"
+    "CMakeLists.txt"
   ],
+  "llamaCpp": {
+    "repo": "https://github.com/ggerganov/llama.cpp.git",
+    "commit": "06705fdcb3ef199d2c2c95a5e3cbb7cf9cc5256e"
+  },
   "scripts": {
-    "postinstall": "node scripts/postinstall.js",
+    "postinstall": "node scripts/postinstall.cjs",
     "build:native": "cmake-js compile",
     "build:native:debug": "cmake-js compile --debug",
     "build:ts": "tsc",
