@@ -1,5 +1,7 @@
 # ai-sdk-llama-cpp
 
+> **Alpha Software** - This package is in early development. The API may change between versions without notice.
+
 > **macOS Only** - This package currently only supports macOS with Apple Silicon or Intel processors.
 
 A minimal [llama.cpp](https://github.com/ggerganov/llama.cpp) provider for the [Vercel AI SDK](https://sdk.vercel.ai/), implementing the `LanguageModelV3` interface.
@@ -11,6 +13,7 @@ This package loads llama.cpp directly into Node.js memory via native C++ binding
 - **Native Performance**: Direct C++ bindings using node-addon-api (N-API)
 - **GPU Acceleration**: Automatic Metal support on macOS
 - **Streaming & Non-streaming**: Full support for both `generateText` and `streamText`
+- **Chat Templates**: Automatic or configurable chat template formatting (llama3, chatml, gemma, etc.)
 - **ESM Only**: Modern ECMAScript modules, no CommonJS
 - **GGUF Support**: Load any GGUF-format model
 
@@ -109,8 +112,26 @@ const model = llamaCpp({
 
   // Optional: Number of CPU threads (default: 4)
   threads: 8,
+
+  // Optional: Enable verbose debug output from llama.cpp (default: false)
+  debug: true,
+
+  // Optional: Chat template to use for formatting messages
+  // - "auto" (default): Use the template embedded in the GGUF model file
+  // - Template name: Use a specific built-in template (e.g., "llama3", "chatml", "gemma")
+  chatTemplate: "auto",
 });
 ```
+
+#### Chat Templates
+
+The `chatTemplate` option controls how messages are formatted before being sent to the model. Available templates include:
+
+- `chatml`, `llama2`, `llama2-sys`, `llama3`, `llama4`
+- `mistral-v1`, `mistral-v3`, `mistral-v7`
+- `phi3`, `phi4`, `gemma`, `falcon3`, `zephyr`
+- `deepseek`, `deepseek2`, `deepseek3`, `command-r`
+- And more (see llama.cpp documentation for the full list)
 
 ### Generation Parameters
 
@@ -161,6 +182,8 @@ Creates a new llama.cpp language model instance.
 - `config.contextSize` (number, optional): Maximum context size. Default: 2048
 - `config.gpuLayers` (number, optional): GPU layers to offload. Default: 99
 - `config.threads` (number, optional): CPU threads. Default: 4
+- `config.debug` (boolean, optional): Enable verbose llama.cpp output. Default: false
+- `config.chatTemplate` (string, optional): Chat template to use for formatting messages. Default: "auto"
 
 **Returns:** `LlamaCppLanguageModel` - A language model compatible with the Vercel AI SDK
 
@@ -182,7 +205,6 @@ This is a minimal implementation with the following limitations:
 - **No tool/function calling**: Tool calls are not supported
 - **No image inputs**: Only text prompts are supported
 - **No JSON mode**: Structured output generation is not supported
-- **Basic prompt formatting**: Uses a simple template format
 
 ## Development
 
@@ -209,6 +231,12 @@ npm run build
 - `npm run build:native` - Build only the native addon
 - `npm run build:ts` - Build only TypeScript
 - `npm run clean` - Remove build artifacts
+- `npm run test` - Run tests in watch mode
+- `npm run test:run` - Run all tests once
+- `npm run test:unit` - Run unit tests
+- `npm run test:integration` - Run integration tests
+- `npm run test:e2e` - Run end-to-end tests
+- `npm run test:coverage` - Run tests with coverage
 
 ## License
 
