@@ -119,18 +119,33 @@ void LlamaModel::create_sampler(const GenerationParams& params) {
 std::vector<int32_t> LlamaModel::tokenize(const std::string& text, bool add_bos) {
     const llama_vocab* vocab = llama_model_get_vocab(model_);
 
-    // First, get the number of tokens
+    // First, get the number of tokens needed
+    // When passing 0 for n_tokens_max, llama_tokenize returns negative of required size
     int n_tokens = llama_tokenize(vocab, text.c_str(), text.length(), nullptr, 0, add_bos, true);
 
-    std::vector<int32_t> tokens(n_tokens);
-    n_tokens = llama_tokenize(vocab, text.c_str(), text.length(), tokens.data(), tokens.size(), add_bos, true);
-
     if (n_tokens < 0) {
-        tokens.resize(-n_tokens);
-        n_tokens = llama_tokenize(vocab, text.c_str(), text.length(), tokens.data(), tokens.size(), add_bos, true);
+        n_tokens = -n_tokens;  // Convert to positive size
     }
 
-    tokens.resize(n_tokens);
+    if (n_tokens == 0) {
+        return {};  // Empty input
+    }
+
+    std::vector<int32_t> tokens(n_tokens);
+    int actual_tokens = llama_tokenize(vocab, text.c_str(), text.length(), tokens.data(), tokens.size(), add_bos, true);
+
+    if (actual_tokens < 0) {
+        // Buffer still too small, resize and try again
+        tokens.resize(-actual_tokens);
+        actual_tokens = llama_tokenize(vocab, text.c_str(), text.length(), tokens.data(), tokens.size(), add_bos, true);
+    }
+
+    if (actual_tokens > 0) {
+        tokens.resize(actual_tokens);
+    } else {
+        tokens.clear();
+    }
+
     return tokens;
 }
 

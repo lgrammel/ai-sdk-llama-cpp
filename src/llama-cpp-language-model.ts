@@ -73,30 +73,32 @@ function convertUsage(
 function formatPrompt(messages: LanguageModelV3Message[]): string {
   let formattedPrompt = "";
 
-  // Format messages into a prompt string
+  // Format messages into a prompt string using Gemma-style format
+  // This format works for most instruction-tuned models
   for (const message of messages) {
     switch (message.role) {
       case "system":
-        formattedPrompt += `<|system|>\n${message.content}\n`;
+        // System messages go at the start
+        formattedPrompt += `<start_of_turn>user\n${message.content}<end_of_turn>\n`;
         break;
       case "user":
-        formattedPrompt += `<|user|>\n`;
+        formattedPrompt += `<start_of_turn>user\n`;
         for (const part of message.content) {
           if (part.type === "text") {
             formattedPrompt += part.text;
           }
           // Note: File parts are not supported in this minimal implementation
         }
-        formattedPrompt += "\n";
+        formattedPrompt += `<end_of_turn>\n`;
         break;
       case "assistant":
-        formattedPrompt += `<|assistant|>\n`;
+        formattedPrompt += `<start_of_turn>model\n`;
         for (const part of message.content) {
           if (part.type === "text") {
             formattedPrompt += part.text;
           }
         }
-        formattedPrompt += "\n";
+        formattedPrompt += `<end_of_turn>\n`;
         break;
       case "tool":
         // Tool results are not supported in this minimal implementation
@@ -104,8 +106,8 @@ function formatPrompt(messages: LanguageModelV3Message[]): string {
     }
   }
 
-  // Add assistant prefix for generation
-  formattedPrompt += "<|assistant|>\n";
+  // Add model prefix for generation
+  formattedPrompt += "<start_of_turn>model\n";
 
   return formattedPrompt;
 }
