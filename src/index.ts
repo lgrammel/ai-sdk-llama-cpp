@@ -1,13 +1,10 @@
-export {
-  llamaCpp,
-  type LlamaCppProviderConfig,
-} from "./llama-cpp-provider.js";
+export { llamaCpp, type LlamaCppProviderConfig } from "./llama-cpp-provider.js";
 export {
   LlamaCppLanguageModel,
   type LlamaCppModelConfig,
   type LlamaCppGenerationConfig,
   // Exported for testing
-  formatPrompt,
+  convertMessages,
   convertFinishReason,
   convertUsage,
 } from "./llama-cpp-language-model.js";

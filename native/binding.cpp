@@ -22,7 +22,8 @@ public:
         int n_gpu_layers,
         int n_ctx,
         int n_threads,
-        bool debug
+        bool debug,
+        const std::string& chat_template
     )
         : Napi::AsyncWorker(callback)
         , model_path_(model_path)
@@ -30,6 +31,7 @@ public:
         , n_ctx_(n_ctx)
         , n_threads_(n_threads)
         , debug_(debug)
+        , chat_template_(chat_template)
         , handle_(-1)
         , success_(false)
     {}
@@ -41,6 +43,7 @@ public:
         model_params.model_path = model_path_;
         model_params.n_gpu_layers = n_gpu_layers_;
         model_params.debug = debug_;
+        model_params.chat_template = chat_template_;
 
         if (!model->load(model_params)) {
             SetError("Failed to load model from: " + model_path_);
@@ -88,6 +91,7 @@ private:
     int n_ctx_;
     int n_threads_;
     bool debug_;
+    std::string chat_template_;
     int handle_;
     bool success_;
 };
@@ -97,12 +101,12 @@ public:
     GenerateWorker(
         Napi::Function& callback,
         int handle,
-        const std::string& prompt,
+        const std::vector<llama_wrapper::ChatMessage>& messages,
         const llama_wrapper::GenerationParams& params
     )
         : Napi::AsyncWorker(callback)
         , handle_(handle)
-        , prompt_(prompt)
+        , messages_(messages)
         , params_(params)
     {}
 
@@ -119,7 +123,7 @@ public:
             model = it->second.get();
         }
 
-        result_ = model->generate(prompt_, params_);
+        result_ = model->generate(messages_, params_);
     }
 
     void OnOK() override {
@@ -136,7 +140,7 @@ public:
 
 private:
     int handle_;
-    std::string prompt_;
+    std::vector<llama_wrapper::ChatMessage> messages_;
     llama_wrapper::GenerationParams params_;
     llama_wrapper::GenerationResult result_;
 };
@@ -172,13 +176,13 @@ public:
     StreamGenerateWorker(
         Napi::Function& callback,
         int handle,
-        const std::string& prompt,
+        const std::vector<llama_wrapper::ChatMessage>& messages,
         const llama_wrapper::GenerationParams& params,
         Napi::Function& token_callback
     )
         : Napi::AsyncWorker(callback)
         , handle_(handle)
-        , prompt_(prompt)
+        , messages_(messages)
         , params_(params)
         , token_callback_(Napi::Persistent(token_callback))
     {}
@@ -197,7 +201,7 @@ public:
         }
 
         // Collect tokens during generation
-        result_ = model->generate_streaming(prompt_, params_, [this](const std::string& token) {
+        result_ = model->generate_streaming(messages_, params_, [this](const std::string& token) {
             std::lock_guard<std::mutex> lock(tokens_mutex_);
             tokens_.push_back(token);
             return true;
@@ -226,7 +230,7 @@ public:
 
 private:
     int handle_;
-    std::string prompt_;
+    std::vector<llama_wrapper::ChatMessage> messages_;
     llama_wrapper::GenerationParams params_;
     llama_wrapper::GenerationResult result_;
     Napi::FunctionReference token_callback_;
@@ -258,8 +262,10 @@ Napi::Value LoadModel(const Napi::CallbackInfo& info) {
         options.Get("threads").As<Napi::Number>().Int32Value() : 4;
     bool debug = options.Has("debug") ?
         options.Get("debug").As<Napi::Boolean>().Value() : false;
+    std::string chat_template = options.Has("chatTemplate") ?
+        options.Get("chatTemplate").As<Napi::String>().Utf8Value() : "auto";
 
-    auto worker = new LoadModelWorker(callback, model_path, n_gpu_layers, n_ctx, n_threads, debug);
+    auto worker = new LoadModelWorker(callback, model_path, n_gpu_layers, n_ctx, n_threads, debug, chat_template);
     worker->Queue();
 
     return env.Undefined();
@@ -286,6 +292,19 @@ Napi::Value UnloadModel(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, true);
 }
 
+// Helper function to parse messages array from JavaScript
+std::vector<llama_wrapper::ChatMessage> ParseMessages(Napi::Array messages_arr) {
+    std::vector<llama_wrapper::ChatMessage> messages;
+    for (uint32_t i = 0; i < messages_arr.Length(); i++) {
+        Napi::Object msg_obj = messages_arr.Get(i).As<Napi::Object>();
+        llama_wrapper::ChatMessage msg;
+        msg.role = msg_obj.Get("role").As<Napi::String>().Utf8Value();
+        msg.content = msg_obj.Get("content").As<Napi::String>().Utf8Value();
+        messages.push_back(msg);
+    }
+    return messages;
+}
+
 Napi::Value Generate(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
 
@@ -298,7 +317,12 @@ Napi::Value Generate(const Napi::CallbackInfo& info) {
     Napi::Object options = info[1].As<Napi::Object>();
     Napi::Function callback = info[2].As<Napi::Function>();
 
-    std::string prompt = options.Get("prompt").As<Napi::String>().Utf8Value();
+    // Parse messages array
+    if (!options.Has("messages") || !options.Get("messages").IsArray()) {
+        Napi::TypeError::New(env, "Expected messages array in options").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    std::vector<llama_wrapper::ChatMessage> messages = ParseMessages(options.Get("messages").As<Napi::Array>());
 
     llama_wrapper::GenerationParams params;
     params.max_tokens = options.Has("maxTokens") ?
@@ -317,7 +341,7 @@ Napi::Value Generate(const Napi::CallbackInfo& info) {
         }
     }
 
-    auto worker = new GenerateWorker(callback, handle, prompt, params);
+    auto worker = new GenerateWorker(callback, handle, messages, params);
     worker->Queue();
 
     return env.Undefined();
@@ -337,7 +361,12 @@ Napi::Value GenerateStream(const Napi::CallbackInfo& info) {
     Napi::Function token_callback = info[2].As<Napi::Function>();
     Napi::Function done_callback = info[3].As<Napi::Function>();
 
-    std::string prompt = options.Get("prompt").As<Napi::String>().Utf8Value();
+    // Parse messages array
+    if (!options.Has("messages") || !options.Get("messages").IsArray()) {
+        Napi::TypeError::New(env, "Expected messages array in options").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    std::vector<llama_wrapper::ChatMessage> messages = ParseMessages(options.Get("messages").As<Napi::Array>());
 
     llama_wrapper::GenerationParams params;
     params.max_tokens = options.Has("maxTokens") ?
@@ -356,7 +385,7 @@ Napi::Value GenerateStream(const Napi::CallbackInfo& info) {
         }
     }
 
-    auto worker = new StreamGenerateWorker(done_callback, handle, prompt, params, token_callback);
+    auto worker = new StreamGenerateWorker(done_callback, handle, messages, params, token_callback);
     worker->Queue();
 
     return env.Undefined();

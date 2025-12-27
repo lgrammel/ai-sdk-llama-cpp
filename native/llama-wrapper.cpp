@@ -29,7 +29,8 @@ LlamaModel::LlamaModel(LlamaModel&& other) noexcept
     : model_(other.model_)
     , ctx_(other.ctx_)
     , sampler_(other.sampler_)
-    , model_path_(std::move(other.model_path_)) {
+    , model_path_(std::move(other.model_path_))
+    , chat_template_(std::move(other.chat_template_)) {
     other.model_ = nullptr;
     other.ctx_ = nullptr;
     other.sampler_ = nullptr;
@@ -42,6 +43,7 @@ LlamaModel& LlamaModel::operator=(LlamaModel&& other) noexcept {
         ctx_ = other.ctx_;
         sampler_ = other.sampler_;
         model_path_ = std::move(other.model_path_);
+        chat_template_ = std::move(other.chat_template_);
         other.model_ = nullptr;
         other.ctx_ = nullptr;
         other.sampler_ = nullptr;
@@ -74,6 +76,7 @@ bool LlamaModel::load(const ModelParams& params) {
     }
 
     model_path_ = params.model_path;
+    chat_template_ = params.chat_template;
     return true;
 }
 
@@ -116,6 +119,60 @@ bool LlamaModel::create_context(const ContextParams& params) {
 
     ctx_ = llama_init_from_model(model_, ctx_params);
     return ctx_ != nullptr;
+}
+
+std::string LlamaModel::apply_chat_template(const std::vector<ChatMessage>& messages) {
+    if (!model_) {
+        return "";
+    }
+
+    // Determine which template to use
+    const char* tmpl = nullptr;
+    if (chat_template_ == "auto") {
+        // Use the template embedded in the model
+        tmpl = llama_model_chat_template(model_, nullptr);
+    } else {
+        // Use the specified template name
+        tmpl = chat_template_.c_str();
+    }
+
+    // Convert messages to llama_chat_message format
+    std::vector<llama_chat_message> chat_messages;
+    chat_messages.reserve(messages.size());
+    for (const auto& msg : messages) {
+        llama_chat_message chat_msg;
+        chat_msg.role = msg.role.c_str();
+        chat_msg.content = msg.content.c_str();
+        chat_messages.push_back(chat_msg);
+    }
+
+    // First call to get required buffer size
+    int32_t result_size = llama_chat_apply_template(
+        tmpl,
+        chat_messages.data(),
+        chat_messages.size(),
+        true,  // add_ass: add assistant prompt
+        nullptr,
+        0
+    );
+
+    if (result_size < 0) {
+        // Template not supported, return empty string
+        return "";
+    }
+
+    // Allocate buffer and apply template
+    std::vector<char> buffer(result_size + 1);
+    llama_chat_apply_template(
+        tmpl,
+        chat_messages.data(),
+        chat_messages.size(),
+        true,
+        buffer.data(),
+        buffer.size()
+    );
+
+    return std::string(buffer.data(), result_size);
 }
 
 void LlamaModel::create_sampler(const GenerationParams& params) {
@@ -182,11 +239,17 @@ bool LlamaModel::is_eos_token(int32_t token) {
     return llama_vocab_is_eog(vocab, token);
 }
 
-GenerationResult LlamaModel::generate(const std::string& prompt, const GenerationParams& params) {
+GenerationResult LlamaModel::generate(const std::vector<ChatMessage>& messages, const GenerationParams& params) {
     GenerationResult result;
     result.finish_reason = "error";
 
     if (!ctx_ || !model_) {
+        return result;
+    }
+
+    // Apply chat template to get the prompt
+    std::string prompt = apply_chat_template(messages);
+    if (prompt.empty()) {
         return result;
     }
 
@@ -264,7 +327,7 @@ GenerationResult LlamaModel::generate(const std::string& prompt, const Generatio
 }
 
 GenerationResult LlamaModel::generate_streaming(
-    const std::string& prompt,
+    const std::vector<ChatMessage>& messages,
     const GenerationParams& params,
     TokenCallback callback
 ) {
@@ -272,6 +335,12 @@ GenerationResult LlamaModel::generate_streaming(
     result.finish_reason = "error";
 
     if (!ctx_ || !model_) {
+        return result;
+    }
+
+    // Apply chat template to get the prompt
+    std::string prompt = apply_chat_template(messages);
+    if (prompt.empty()) {
         return result;
     }
 

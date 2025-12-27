@@ -112,7 +112,7 @@ describe("LlamaCppLanguageModel Integration", () => {
       });
 
       expect(result.request).toHaveProperty("body");
-      expect(result.request.body).toHaveProperty("prompt");
+      expect(result.request.body).toHaveProperty("messages");
       expect(result.request.body).toHaveProperty("maxTokens", 256);
     });
 
@@ -154,7 +154,7 @@ describe("LlamaCppLanguageModel Integration", () => {
       );
     });
 
-    it("formats prompt correctly for native binding", async () => {
+    it("passes messages correctly to native binding", async () => {
       await model.doGenerate({
         prompt: testMessages,
       });
@@ -162,7 +162,7 @@ describe("LlamaCppLanguageModel Integration", () => {
       expect(nativeBinding.generate).toHaveBeenCalledWith(
         expect.any(Number),
         expect.objectContaining({
-          prompt: expect.stringContaining("<start_of_turn>user"),
+          messages: [{ role: "user", content: "Hello, how are you?" }],
         })
       );
     });
@@ -343,6 +343,7 @@ describe("LlamaCppLanguageModel Integration", () => {
         gpuLayers: 32,
         threads: 8,
         debug: true,
+        chatTemplate: "llama3",
       });
 
       await customModel.doGenerate({
@@ -355,6 +356,7 @@ describe("LlamaCppLanguageModel Integration", () => {
         gpuLayers: 32,
         threads: 8,
         debug: true,
+        chatTemplate: "llama3",
       });
 
       await customModel.dispose();
@@ -375,6 +377,7 @@ describe("LlamaCppLanguageModel Integration", () => {
         gpuLayers: 99,
         threads: 4,
         debug: false,
+        chatTemplate: "auto",
       });
 
       await minimalModel.dispose();

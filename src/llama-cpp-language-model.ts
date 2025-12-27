@@ -19,6 +19,7 @@ import {
   isModelLoaded,
   type LoadModelOptions,
   type GenerateOptions,
+  type ChatMessage,
 } from "./native-binding.js";
 
 export interface LlamaCppModelConfig {
@@ -31,6 +32,16 @@ export interface LlamaCppModelConfig {
    * Default: false
    */
   debug?: boolean;
+  /**
+   * Chat template to use for formatting messages.
+   * - "auto" (default): Use the template embedded in the GGUF model file
+   * - Template name: Use a specific built-in template (e.g., "llama3", "chatml", "gemma")
+   *
+   * Available templates: chatml, llama2, llama2-sys, llama3, llama4, mistral-v1,
+   * mistral-v3, mistral-v7, phi3, phi4, gemma, falcon3, zephyr, deepseek, deepseek2,
+   * deepseek3, command-r, and more.
+   */
+  chatTemplate?: string;
 }
 
 export interface LlamaCppGenerationConfig {
@@ -77,46 +88,55 @@ export function convertUsage(
   };
 }
 
-export function formatPrompt(messages: LanguageModelV3Message[]): string {
-  let formattedPrompt = "";
+/**
+ * Convert AI SDK messages to simple role/content format for the native layer.
+ * The native layer will apply the appropriate chat template.
+ */
+export function convertMessages(messages: LanguageModelV3Message[]): ChatMessage[] {
+  const result: ChatMessage[] = [];
 
-  // Format messages into a prompt string using Gemma-style format
-  // This format works for most instruction-tuned models
   for (const message of messages) {
     switch (message.role) {
       case "system":
-        // System messages go at the start
-        formattedPrompt += `<start_of_turn>user\n${message.content}<end_of_turn>\n`;
+        result.push({
+          role: "system",
+          content: message.content,
+        });
         break;
       case "user":
-        formattedPrompt += `<start_of_turn>user\n`;
+        // Extract text content from user messages
+        let userContent = "";
         for (const part of message.content) {
           if (part.type === "text") {
-            formattedPrompt += part.text;
+            userContent += part.text;
           }
-          // Note: File parts are not supported in this minimal implementation
+          // Note: File parts are not supported in this implementation
         }
-        formattedPrompt += `<end_of_turn>\n`;
+        result.push({
+          role: "user",
+          content: userContent,
+        });
         break;
       case "assistant":
-        formattedPrompt += `<start_of_turn>model\n`;
+        // Extract text content from assistant messages
+        let assistantContent = "";
         for (const part of message.content) {
           if (part.type === "text") {
-            formattedPrompt += part.text;
+            assistantContent += part.text;
           }
         }
-        formattedPrompt += `<end_of_turn>\n`;
+        result.push({
+          role: "assistant",
+          content: assistantContent,
+        });
         break;
       case "tool":
-        // Tool results are not supported in this minimal implementation
+        // Tool results are not supported in this implementation
         break;
     }
   }
 
-  // Add model prefix for generation
-  formattedPrompt += "<start_of_turn>model\n";
-
-  return formattedPrompt;
+  return result;
 }
 
 export class LlamaCppLanguageModel implements LanguageModelV3 {
@@ -157,6 +177,7 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
         gpuLayers: this.config.gpuLayers ?? 99,
         threads: this.config.threads ?? 4,
         debug: this.config.debug ?? false,
+        chatTemplate: this.config.chatTemplate ?? "auto",
       };
 
       this.modelHandle = await loadModel(options);
@@ -184,10 +205,10 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
   ): Promise<LanguageModelV3GenerateResult> {
     const handle = await this.ensureModelLoaded();
 
-    const prompt = formatPrompt(options.prompt);
+    const messages = convertMessages(options.prompt);
 
     const generateOptions: GenerateOptions = {
-      prompt,
+      messages,
       maxTokens: options.maxOutputTokens ?? 256,
       temperature: options.temperature ?? 0.7,
       topP: options.topP ?? 0.9,
@@ -224,10 +245,10 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
   ): Promise<LanguageModelV3StreamResult> {
     const handle = await this.ensureModelLoaded();
 
-    const prompt = formatPrompt(options.prompt);
+    const messages = convertMessages(options.prompt);
 
     const generateOptions: GenerateOptions = {
-      prompt,
+      messages,
       maxTokens: options.maxOutputTokens ?? 256,
       temperature: options.temperature ?? 0.7,
       topP: options.topP ?? 0.9,

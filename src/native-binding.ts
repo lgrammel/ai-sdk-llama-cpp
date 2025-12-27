@@ -14,10 +14,21 @@ export interface LoadModelOptions {
   contextSize?: number;
   threads?: number;
   debug?: boolean;
+  /**
+   * Chat template to use for formatting messages.
+   * - "auto" (default): Use the template embedded in the GGUF model file
+   * - Template name: Use a specific built-in template (e.g., "llama3", "chatml", "gemma")
+   */
+  chatTemplate?: string;
+}
+
+export interface ChatMessage {
+  role: string;
+  content: string;
 }
 
 export interface GenerateOptions {
-  prompt: string;
+  messages: ChatMessage[];
   maxTokens?: number;
   temperature?: number;
   topP?: number;

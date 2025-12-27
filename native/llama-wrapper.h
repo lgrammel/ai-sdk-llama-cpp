@@ -19,6 +19,12 @@ struct ModelParams {
     bool use_mmap = true;
     bool use_mlock = false;
     bool debug = false;     // Show verbose llama.cpp output
+    std::string chat_template = "auto";  // "auto" uses template from model, or specify a built-in template
+};
+
+struct ChatMessage {
+    std::string role;
+    std::string content;
 };
 
 struct ContextParams {
@@ -74,12 +80,15 @@ public:
     // Create a context for inference
     bool create_context(const ContextParams& params);
 
-    // Generate text (non-streaming)
-    GenerationResult generate(const std::string& prompt, const GenerationParams& params);
+    // Apply chat template to messages and return formatted prompt
+    std::string apply_chat_template(const std::vector<ChatMessage>& messages);
 
-    // Generate text (streaming)
+    // Generate text from messages (non-streaming)
+    GenerationResult generate(const std::vector<ChatMessage>& messages, const GenerationParams& params);
+
+    // Generate text from messages (streaming)
     GenerationResult generate_streaming(
-        const std::string& prompt,
+        const std::vector<ChatMessage>& messages,
         const GenerationParams& params,
         TokenCallback callback
     );
@@ -89,6 +98,7 @@ private:
     llama_context* ctx_ = nullptr;
     llama_sampler* sampler_ = nullptr;
     std::string model_path_;
+    std::string chat_template_;
 
     // Tokenize a string
     std::vector<int32_t> tokenize(const std::string& text, bool add_bos);
