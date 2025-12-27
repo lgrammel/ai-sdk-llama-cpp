@@ -21,6 +21,11 @@ export interface LlamaCppProviderConfig {
    * Number of CPU threads to use (default: 4).
    */
   threads?: number;
+
+  /**
+   * Enable verbose debug output from llama.cpp (default: false).
+   */
+  debug?: boolean;
 }
 
 /**
@@ -58,6 +63,7 @@ export function createLlamaCpp(config: LlamaCppProviderConfig): LlamaCppLanguage
     contextSize: config.contextSize,
     gpuLayers: config.gpuLayers,
     threads: config.threads,
+    debug: config.debug,
   };
 
   return new LlamaCppLanguageModel(modelConfig);

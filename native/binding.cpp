@@ -21,13 +21,15 @@ public:
         const std::string& model_path,
         int n_gpu_layers,
         int n_ctx,
-        int n_threads
+        int n_threads,
+        bool debug
     )
         : Napi::AsyncWorker(callback)
         , model_path_(model_path)
         , n_gpu_layers_(n_gpu_layers)
         , n_ctx_(n_ctx)
         , n_threads_(n_threads)
+        , debug_(debug)
         , handle_(-1)
         , success_(false)
     {}
@@ -38,6 +40,7 @@ public:
         llama_wrapper::ModelParams model_params;
         model_params.model_path = model_path_;
         model_params.n_gpu_layers = n_gpu_layers_;
+        model_params.debug = debug_;
 
         if (!model->load(model_params)) {
             SetError("Failed to load model from: " + model_path_);
@@ -84,6 +87,7 @@ private:
     int n_gpu_layers_;
     int n_ctx_;
     int n_threads_;
+    bool debug_;
     int handle_;
     bool success_;
 };
@@ -252,8 +256,10 @@ Napi::Value LoadModel(const Napi::CallbackInfo& info) {
         options.Get("contextSize").As<Napi::Number>().Int32Value() : 2048;
     int n_threads = options.Has("threads") ?
         options.Get("threads").As<Napi::Number>().Int32Value() : 4;
+    bool debug = options.Has("debug") ?
+        options.Get("debug").As<Napi::Boolean>().Value() : false;
 
-    auto worker = new LoadModelWorker(callback, model_path, n_gpu_layers, n_ctx, n_threads);
+    auto worker = new LoadModelWorker(callback, model_path, n_gpu_layers, n_ctx, n_threads, debug);
     worker->Queue();
 
     return env.Undefined();

@@ -13,6 +13,7 @@ export interface LoadModelOptions {
   gpuLayers?: number;
   contextSize?: number;
   threads?: number;
+  debug?: boolean;
 }
 
 export interface GenerateOptions {

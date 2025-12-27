@@ -18,6 +18,7 @@ struct ModelParams {
     int n_gpu_layers = 99;  // Use GPU by default if available
     bool use_mmap = true;
     bool use_mlock = false;
+    bool debug = false;     // Show verbose llama.cpp output
 };
 
 struct ContextParams {

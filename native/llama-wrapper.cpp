@@ -3,8 +3,21 @@
 #include <algorithm>
 #include <cstring>
 #include <stdexcept>
+#include <cstdio>
 
 namespace llama_wrapper {
+
+// Global debug flag for log callback
+static bool g_debug_mode = false;
+
+// Custom log callback that respects debug mode
+static void llama_log_callback(ggml_log_level level, const char* text, void* user_data) {
+    (void)level;
+    (void)user_data;
+    if (g_debug_mode) {
+        fprintf(stderr, "%s", text);
+    }
+}
 
 LlamaModel::LlamaModel() = default;
 
@@ -40,6 +53,10 @@ bool LlamaModel::load(const ModelParams& params) {
     if (model_) {
         unload();
     }
+
+    // Set debug mode and install log callback
+    g_debug_mode = params.debug;
+    llama_log_set(llama_log_callback, nullptr);
 
     // Initialize llama backend
     llama_backend_init();

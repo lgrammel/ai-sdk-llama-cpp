@@ -26,6 +26,11 @@ export interface LlamaCppModelConfig {
   contextSize?: number;
   gpuLayers?: number;
   threads?: number;
+  /**
+   * Enable verbose debug output from llama.cpp.
+   * Default: false
+   */
+  debug?: boolean;
 }
 
 export interface LlamaCppGenerationConfig {
@@ -149,6 +154,7 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
         contextSize: this.config.contextSize ?? 2048,
         gpuLayers: this.config.gpuLayers ?? 99,
         threads: this.config.threads ?? 4,
+        debug: this.config.debug ?? false,
       };
 
       this.modelHandle = await loadModel(options);

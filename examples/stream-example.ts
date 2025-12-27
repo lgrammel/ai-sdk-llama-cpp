@@ -5,6 +5,7 @@ async function main() {
   const model = createLlamaCpp({
     modelPath: "./models/gemma-3-12b-it-Q3_K_M.gguf",
     contextSize: 4096,
+    // debug: true, // Uncomment to see verbose llama.cpp output
   });
 
   try {
