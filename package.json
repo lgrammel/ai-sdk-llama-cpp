@@ -14,9 +14,16 @@
   "files": [
     "dist",
     "native",
-    "llama.cpp",
     "scripts",
-    "CMakeLists.txt"
+    "CMakeLists.txt",
+    "llama.cpp/CMakeLists.txt",
+    "llama.cpp/LICENSE",
+    "llama.cpp/cmake",
+    "llama.cpp/common",
+    "llama.cpp/ggml",
+    "llama.cpp/include",
+    "llama.cpp/src",
+    "llama.cpp/vendor"
   ],
   "scripts": {
     "postinstall": "node scripts/postinstall.js",
