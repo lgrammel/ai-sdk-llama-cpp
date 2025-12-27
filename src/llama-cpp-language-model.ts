@@ -1,12 +1,15 @@
 import type {
-  LanguageModelV1,
-  LanguageModelV1CallOptions,
-  LanguageModelV1CallWarning,
-  LanguageModelV1FinishReason,
-  LanguageModelV1StreamPart,
-  LanguageModelV1FunctionToolCall,
-  LanguageModelV1ProviderMetadata,
-} from '@ai-sdk/provider';
+  LanguageModelV3,
+  LanguageModelV3CallOptions,
+  LanguageModelV3Content,
+  LanguageModelV3FinishReason,
+  LanguageModelV3GenerateResult,
+  LanguageModelV3Message,
+  LanguageModelV3StreamPart,
+  LanguageModelV3StreamResult,
+  LanguageModelV3Usage,
+  SharedV3Warning,
+} from "@ai-sdk/provider";
 
 import {
   loadModel,
@@ -16,7 +19,7 @@ import {
   isModelLoaded,
   type LoadModelOptions,
   type GenerateOptions,
-} from './native-binding.js';
+} from "./native-binding.js";
 
 export interface LlamaCppModelConfig {
   modelPath: string;
@@ -33,69 +36,89 @@ export interface LlamaCppGenerationConfig {
   stopSequences?: string[];
 }
 
-function convertFinishReason(reason: string): LanguageModelV1FinishReason {
+function convertFinishReason(reason: string): LanguageModelV3FinishReason {
+  let unified: LanguageModelV3FinishReason["unified"];
   switch (reason) {
-    case 'stop':
-      return 'stop';
-    case 'length':
-      return 'length';
+    case "stop":
+      unified = "stop";
+      break;
+    case "length":
+      unified = "length";
+      break;
     default:
-      return 'other';
+      unified = "other";
   }
+  return { unified, raw: reason };
 }
 
-function formatPrompt(options: LanguageModelV1CallOptions): string {
-  const { prompt, mode } = options;
+function convertUsage(
+  promptTokens: number,
+  completionTokens: number
+): LanguageModelV3Usage {
+  return {
+    inputTokens: {
+      total: promptTokens,
+      noCache: undefined,
+      cacheRead: undefined,
+      cacheWrite: undefined,
+    },
+    outputTokens: {
+      total: completionTokens,
+      text: completionTokens,
+      reasoning: undefined,
+    },
+  };
+}
 
-  let formattedPrompt = '';
-
-  // Handle system message
-  if (mode.type === 'regular' || mode.type === 'object-json') {
-    // System message handling
-  }
+function formatPrompt(messages: LanguageModelV3Message[]): string {
+  let formattedPrompt = "";
 
   // Format messages into a prompt string
-  for (const message of prompt) {
+  for (const message of messages) {
     switch (message.role) {
-      case 'system':
+      case "system":
         formattedPrompt += `<|system|>\n${message.content}\n`;
         break;
-      case 'user':
+      case "user":
         formattedPrompt += `<|user|>\n`;
         for (const part of message.content) {
-          if (part.type === 'text') {
+          if (part.type === "text") {
             formattedPrompt += part.text;
           }
-          // Note: Image parts are not supported in this minimal implementation
+          // Note: File parts are not supported in this minimal implementation
         }
-        formattedPrompt += '\n';
+        formattedPrompt += "\n";
         break;
-      case 'assistant':
+      case "assistant":
         formattedPrompt += `<|assistant|>\n`;
         for (const part of message.content) {
-          if (part.type === 'text') {
+          if (part.type === "text") {
             formattedPrompt += part.text;
           }
         }
-        formattedPrompt += '\n';
+        formattedPrompt += "\n";
         break;
-      case 'tool':
+      case "tool":
         // Tool results are not supported in this minimal implementation
         break;
     }
   }
 
   // Add assistant prefix for generation
-  formattedPrompt += '<|assistant|>\n';
+  formattedPrompt += "<|assistant|>\n";
 
   return formattedPrompt;
 }
 
-export class LlamaCppLanguageModel implements LanguageModelV1 {
-  readonly specificationVersion = 'v1' as const;
-  readonly provider = 'llama.cpp';
+export class LlamaCppLanguageModel implements LanguageModelV3 {
+  readonly specificationVersion = "v3" as const;
+  readonly provider = "llama.cpp";
   readonly modelId: string;
-  readonly defaultObjectGenerationMode = undefined;
+
+  /**
+   * Supported URL patterns - empty since we only support local files
+   */
+  readonly supportedUrls: Record<string, RegExp[]> = {};
 
   private modelHandle: number | null = null;
   private readonly config: LlamaCppModelConfig;
@@ -133,7 +156,7 @@ export class LlamaCppLanguageModel implements LanguageModelV1 {
     this.initPromise = null;
 
     if (this.modelHandle === null) {
-      throw new Error('Failed to load model');
+      throw new Error("Failed to load model");
     }
 
     return this.modelHandle;
@@ -146,24 +169,16 @@ export class LlamaCppLanguageModel implements LanguageModelV1 {
     }
   }
 
-  async doGenerate(options: LanguageModelV1CallOptions): Promise<{
-    text: string;
-    toolCalls?: LanguageModelV1FunctionToolCall[];
-    finishReason: LanguageModelV1FinishReason;
-    usage: { promptTokens: number; completionTokens: number };
-    rawCall: { rawPrompt: unknown; rawSettings: Record<string, unknown> };
-    rawResponse?: { headers?: Record<string, string> };
-    warnings?: LanguageModelV1CallWarning[];
-    providerMetadata?: LanguageModelV1ProviderMetadata;
-    logprobs?: undefined;
-  }> {
+  async doGenerate(
+    options: LanguageModelV3CallOptions
+  ): Promise<LanguageModelV3GenerateResult> {
     const handle = await this.ensureModelLoaded();
 
-    const prompt = formatPrompt(options);
+    const prompt = formatPrompt(options.prompt);
 
     const generateOptions: GenerateOptions = {
       prompt,
-      maxTokens: options.maxTokens ?? 256,
+      maxTokens: options.maxOutputTokens ?? 256,
       temperature: options.temperature ?? 0.7,
       topP: options.topP ?? 0.9,
       topK: options.topK ?? 40,
@@ -172,76 +187,102 @@ export class LlamaCppLanguageModel implements LanguageModelV1 {
 
     const result = await generate(handle, generateOptions);
 
-    return {
-      text: result.text,
-      finishReason: convertFinishReason(result.finishReason),
-      usage: {
-        promptTokens: result.promptTokens,
-        completionTokens: result.completionTokens,
+    // Build content array with text content
+    const content: LanguageModelV3Content[] = [
+      {
+        type: "text",
+        text: result.text,
+        providerMetadata: undefined,
       },
-      rawCall: {
-        rawPrompt: prompt,
-        rawSettings: generateOptions as unknown as Record<string, unknown>,
+    ];
+
+    const warnings: SharedV3Warning[] = [];
+
+    return {
+      content,
+      finishReason: convertFinishReason(result.finishReason),
+      usage: convertUsage(result.promptTokens, result.completionTokens),
+      warnings,
+      request: {
+        body: generateOptions,
       },
     };
   }
 
-  async doStream(options: LanguageModelV1CallOptions): Promise<{
-    stream: ReadableStream<LanguageModelV1StreamPart>;
-    rawCall: { rawPrompt: unknown; rawSettings: Record<string, unknown> };
-    rawResponse?: { headers?: Record<string, string> };
-    warnings?: LanguageModelV1CallWarning[];
-  }> {
+  async doStream(
+    options: LanguageModelV3CallOptions
+  ): Promise<LanguageModelV3StreamResult> {
     const handle = await this.ensureModelLoaded();
 
-    const prompt = formatPrompt(options);
+    const prompt = formatPrompt(options.prompt);
 
     const generateOptions: GenerateOptions = {
       prompt,
-      maxTokens: options.maxTokens ?? 256,
+      maxTokens: options.maxOutputTokens ?? 256,
       temperature: options.temperature ?? 0.7,
       topP: options.topP ?? 0.9,
       topK: options.topK ?? 40,
       stopSequences: options.stopSequences,
     };
 
-    let streamController: ReadableStreamDefaultController<LanguageModelV1StreamPart>;
+    const textId = crypto.randomUUID();
 
-    const stream = new ReadableStream<LanguageModelV1StreamPart>({
-      start(controller) {
-        streamController = controller;
+    const stream = new ReadableStream<LanguageModelV3StreamPart>({
+      start: async (controller) => {
+        try {
+          // Emit stream start
+          controller.enqueue({
+            type: "stream-start",
+            warnings: [],
+          });
+
+          // Emit text start
+          controller.enqueue({
+            type: "text-start",
+            id: textId,
+          });
+
+          const result = await generateStream(
+            handle,
+            generateOptions,
+            (token) => {
+              controller.enqueue({
+                type: "text-delta",
+                id: textId,
+                delta: token,
+              });
+            }
+          );
+
+          // Emit text end
+          controller.enqueue({
+            type: "text-end",
+            id: textId,
+          });
+
+          // Emit finish
+          controller.enqueue({
+            type: "finish",
+            finishReason: convertFinishReason(result.finishReason),
+            usage: convertUsage(result.promptTokens, result.completionTokens),
+          });
+
+          controller.close();
+        } catch (error) {
+          controller.enqueue({
+            type: "error",
+            error,
+          });
+          controller.close();
+        }
       },
     });
 
-    // Start generation in the background
-    generateStream(handle, generateOptions, (token) => {
-      streamController.enqueue({
-        type: 'text-delta',
-        textDelta: token,
-      });
-    })
-      .then((result) => {
-        streamController.enqueue({
-          type: 'finish',
-          finishReason: convertFinishReason(result.finishReason),
-          usage: {
-            promptTokens: result.promptTokens,
-            completionTokens: result.completionTokens,
-          },
-        });
-        streamController.close();
-      })
-      .catch((error) => {
-        streamController.error(error);
-      });
-
     return {
       stream,
-      rawCall: {
-        rawPrompt: prompt,
-        rawSettings: generateOptions as unknown as Record<string, unknown>,
+      request: {
+        body: generateOptions,
       },
     };
   }
 }
-
