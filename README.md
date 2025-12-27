@@ -38,6 +38,7 @@ npm install ai-sdk-llama-cpp
 ```
 
 The installation will automatically:
+
 1. Detect macOS and verify platform compatibility
 2. Compile llama.cpp as a static library with Metal support
 3. Build the native Node.js addon
@@ -49,40 +50,46 @@ The installation will automatically:
 ### Basic Example
 
 ```typescript
-import { generateText, streamText } from 'ai';
-import { createLlamaCpp } from 'ai-sdk-llama-cpp';
+import { generateText } from "ai";
+import { createLlamaCpp } from "ai-sdk-llama-cpp";
 
-// Create a model instance
 const model = createLlamaCpp({
-  modelPath: './models/llama-3.2-1b-instruct.Q4_K_M.gguf'
+  modelPath: "./models/llama-3.2-1b-instruct.Q4_K_M.gguf",
 });
 
-// Non-streaming generation
-const { text } = await generateText({
-  model,
-  prompt: 'Explain quantum computing in simple terms.'
-});
+try {
+  const { text } = await generateText({
+    model,
+    prompt: "Explain quantum computing in simple terms.",
+  });
 
-console.log(text);
+  console.log(text);
+} finally {
+  model.dispose();
+}
 ```
 
 ### Streaming Example
 
 ```typescript
-import { streamText } from 'ai';
-import { createLlamaCpp } from 'ai-sdk-llama-cpp';
+import { streamText } from "ai";
+import { createLlamaCpp } from "ai-sdk-llama-cpp";
 
 const model = createLlamaCpp({
-  modelPath: './models/llama-3.2-1b-instruct.Q4_K_M.gguf'
+  modelPath: "./models/llama-3.2-1b-instruct.Q4_K_M.gguf",
 });
 
-const { textStream } = await streamText({
-  model,
-  prompt: 'Write a haiku about programming.'
-});
+try {
+  const { textStream } = await streamText({
+    model,
+    prompt: "Write a haiku about programming.",
+  });
 
-for await (const chunk of textStream) {
-  process.stdout.write(chunk);
+  for await (const chunk of textStream) {
+    process.stdout.write(chunk);
+  }
+} finally {
+  model.dispose();
 }
 ```
 
@@ -91,7 +98,7 @@ for await (const chunk of textStream) {
 ```typescript
 const model = createLlamaCpp({
   // Required: Path to the GGUF model file
-  modelPath: './models/your-model.gguf',
+  modelPath: "./models/your-model.gguf",
 
   // Optional: Maximum context size (default: 2048)
   contextSize: 4096,
@@ -101,7 +108,7 @@ const model = createLlamaCpp({
   gpuLayers: 99,
 
   // Optional: Number of CPU threads (default: 4)
-  threads: 8
+  threads: 8,
 });
 ```
 
@@ -110,15 +117,19 @@ const model = createLlamaCpp({
 The standard AI SDK generation parameters are supported:
 
 ```typescript
-const { text } = await generateText({
-  model,
-  prompt: 'Hello!',
-  maxTokens: 256,        // Maximum tokens to generate
-  temperature: 0.7,      // Sampling temperature (0-2)
-  topP: 0.9,            // Nucleus sampling threshold
-  topK: 40,             // Top-k sampling
-  stopSequences: ['\n'] // Stop generation at these sequences
-});
+try {
+  const { text } = await generateText({
+    model,
+    prompt: "Hello!",
+    maxTokens: 256, // Maximum tokens to generate
+    temperature: 0.7, // Sampling temperature (0-2)
+    topP: 0.9, // Nucleus sampling threshold
+    topK: 40, // Top-k sampling
+    stopSequences: ["\n"], // Stop generation at these sequences
+  });
+} finally {
+  model.dispose();
+}
 ```
 
 ## Model Downloads
@@ -145,6 +156,7 @@ wget -P models/ https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/reso
 Creates a new llama.cpp language model instance.
 
 **Parameters:**
+
 - `config.modelPath` (string, required): Path to the GGUF model file
 - `config.contextSize` (number, optional): Maximum context size. Default: 2048
 - `config.gpuLayers` (number, optional): GPU layers to offload. Default: 99
@@ -157,9 +169,10 @@ Creates a new llama.cpp language model instance.
 Implements the `LanguageModelV3` interface from `@ai-sdk/provider`.
 
 **Methods:**
+
 - `doGenerate(options)`: Non-streaming text generation
 - `doStream(options)`: Streaming text generation
-- `dispose()`: Unload the model and free resources
+- `dispose()`: Unload the model and free GPU/CPU resources. **Always call this when done** to prevent memory leaks, especially when loading multiple models
 
 ## Limitations
 
@@ -177,7 +190,7 @@ This is a minimal implementation with the following limitations:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/ai-sdk-llama-cpp.git
+git clone https://github.com/lgrammel/ai-sdk-llama-cpp.git
 cd ai-sdk-llama-cpp
 
 # Initialize submodules
