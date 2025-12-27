@@ -47,7 +47,7 @@ describeE2E("E2E Generation Tests", () => {
         const { text, usage, finishReason } = await generateText({
           model,
           prompt: "Say hello in one word.",
-          maxTokens: 20,
+          maxOutputTokens: 20,
         });
 
         expect(text.length).toBeGreaterThan(0);
@@ -70,7 +70,7 @@ describeE2E("E2E Generation Tests", () => {
               content: "What is 1+1? Answer with just the number.",
             },
           ],
-          maxTokens: 10,
+          maxOutputTokens: 10,
         });
 
         expect(text.length).toBeGreaterThan(0);
@@ -79,13 +79,13 @@ describeE2E("E2E Generation Tests", () => {
     );
 
     it(
-      "accepts maxTokens parameter",
+      "accepts maxOutputTokens parameter",
       async () => {
-        // Test that maxTokens parameter is accepted and generation completes
+        // Test that maxOutputTokens parameter is accepted and generation completes
         const { text, finishReason } = await generateText({
           model,
           prompt: "Say one word.",
-          maxTokens: 50,
+          maxOutputTokens: 50,
         });
 
         // Generation should complete successfully
@@ -108,7 +108,7 @@ describeE2E("E2E Generation Tests", () => {
             },
             { role: "user", content: "What is my name?" },
           ],
-          maxTokens: 30,
+          maxOutputTokens: 30,
         });
 
         expect(text.length).toBeGreaterThan(0);
@@ -125,7 +125,7 @@ describeE2E("E2E Generation Tests", () => {
         const { textStream } = streamText({
           model,
           prompt: "Count from 1 to 3.",
-          maxTokens: 30,
+          maxOutputTokens: 30,
         });
 
         const chunks: string[] = [];
@@ -145,7 +145,7 @@ describeE2E("E2E Generation Tests", () => {
         const result = streamText({
           model,
           prompt: "Hello",
-          maxTokens: 20,
+          maxOutputTokens: 20,
         });
 
         // Consume the stream
@@ -167,7 +167,7 @@ describeE2E("E2E Generation Tests", () => {
         const result = streamText({
           model,
           prompt: "Say hi.",
-          maxTokens: 10,
+          maxOutputTokens: 10,
         });
 
         // Consume the stream
@@ -190,14 +190,14 @@ describeE2E("E2E Generation Tests", () => {
         const { text: text1 } = await generateText({
           model,
           prompt: "What is 2+2?",
-          maxTokens: 10,
+          maxOutputTokens: 10,
           temperature: 0.0,
         });
 
         const { text: text2 } = await generateText({
           model,
           prompt: "What is 2+2?",
-          maxTokens: 10,
+          maxOutputTokens: 10,
           temperature: 0.0,
         });
 
@@ -214,7 +214,7 @@ describeE2E("E2E Generation Tests", () => {
         const { text } = await generateText({
           model,
           prompt: "Hello",
-          maxTokens: 10,
+          maxOutputTokens: 10,
           topP: 0.5,
         });
 
@@ -229,7 +229,7 @@ describeE2E("E2E Generation Tests", () => {
         const { text } = await generateText({
           model,
           prompt: "Hello",
-          maxTokens: 10,
+          maxOutputTokens: 10,
           topK: 10,
         });
 
@@ -253,7 +253,7 @@ describeE2E("E2E Generation Tests", () => {
         const { text } = await generateText({
           model: model2,
           prompt: "Hi",
-          maxTokens: 5,
+          maxOutputTokens: 5,
         });
 
         expect(text.length).toBeGreaterThan(0);
@@ -276,7 +276,7 @@ describeE2E("E2E Generation Tests", () => {
         await generateText({
           model: tempModel,
           prompt: "Test",
-          maxTokens: 5,
+          maxOutputTokens: 5,
         });
 
         // Dispose should not throw
