@@ -6,6 +6,10 @@ export {
   LlamaCppLanguageModel,
   type LlamaCppModelConfig,
   type LlamaCppGenerationConfig,
+  // Exported for testing
+  formatPrompt,
+  convertFinishReason,
+  convertUsage,
 } from "./llama-cpp-language-model.js";
 
 // Default export

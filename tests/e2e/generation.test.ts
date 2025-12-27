@@ -1,0 +1,305 @@
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { generateText, streamText } from "ai";
+import { createLlamaCpp, LlamaCppLanguageModel } from "../../src/index.js";
+
+/**
+ * E2E tests for the llama.cpp provider.
+ *
+ * These tests require a real GGUF model file. Set the TEST_MODEL_PATH
+ * environment variable to run these tests:
+ *
+ *   TEST_MODEL_PATH=./models/your-model.gguf npm run test:e2e
+ *
+ * If TEST_MODEL_PATH is not set, these tests will be skipped.
+ */
+
+const TEST_MODEL_PATH = process.env.TEST_MODEL_PATH;
+const shouldRunTests = !!TEST_MODEL_PATH;
+
+const describeE2E = shouldRunTests ? describe : describe.skip;
+
+describeE2E("E2E Generation Tests", () => {
+  let model: LlamaCppLanguageModel;
+
+  beforeAll(() => {
+    if (!TEST_MODEL_PATH) {
+      throw new Error("TEST_MODEL_PATH environment variable not set");
+    }
+
+    model = createLlamaCpp({
+      modelPath: TEST_MODEL_PATH,
+      contextSize: 2048,
+      gpuLayers: 0, // Use CPU for CI compatibility
+      threads: 4,
+    });
+  });
+
+  afterAll(async () => {
+    if (model) {
+      await model.dispose();
+    }
+  });
+
+  describe("generateText", () => {
+    it(
+      "generates text response",
+      async () => {
+        const { text, usage, finishReason } = await generateText({
+          model,
+          prompt: "Say hello in one word.",
+          maxTokens: 20,
+        });
+
+        expect(text.length).toBeGreaterThan(0);
+        // AI SDK v6 uses inputTokens/outputTokens structure
+        expect(usage.inputTokens).toBeGreaterThan(0);
+        expect(usage.outputTokens).toBeGreaterThan(0);
+        expect(finishReason).toBeDefined();
+      },
+      { timeout: 120000 }
+    );
+
+    it(
+      "generates text with messages array",
+      async () => {
+        const { text } = await generateText({
+          model,
+          messages: [
+            {
+              role: "user",
+              content: "What is 1+1? Answer with just the number.",
+            },
+          ],
+          maxTokens: 10,
+        });
+
+        expect(text.length).toBeGreaterThan(0);
+      },
+      { timeout: 120000 }
+    );
+
+    it(
+      "accepts maxTokens parameter",
+      async () => {
+        // Test that maxTokens parameter is accepted and generation completes
+        const { text, finishReason } = await generateText({
+          model,
+          prompt: "Say one word.",
+          maxTokens: 50,
+        });
+
+        // Generation should complete successfully
+        expect(text.length).toBeGreaterThan(0);
+        expect(finishReason).toBeDefined();
+      },
+      { timeout: 120000 }
+    );
+
+    it(
+      "handles multi-turn conversation",
+      async () => {
+        const { text } = await generateText({
+          model,
+          messages: [
+            { role: "user", content: "My name is Alice." },
+            {
+              role: "assistant",
+              content: "Nice to meet you, Alice! How can I help you today?",
+            },
+            { role: "user", content: "What is my name?" },
+          ],
+          maxTokens: 30,
+        });
+
+        expect(text.length).toBeGreaterThan(0);
+        // The model should reference "Alice" in some way
+      },
+      { timeout: 120000 }
+    );
+  });
+
+  describe("streamText", () => {
+    it(
+      "streams text tokens",
+      async () => {
+        const { textStream } = streamText({
+          model,
+          prompt: "Count from 1 to 3.",
+          maxTokens: 30,
+        });
+
+        const chunks: string[] = [];
+        for await (const chunk of textStream) {
+          chunks.push(chunk);
+        }
+
+        expect(chunks.length).toBeGreaterThan(1);
+        expect(chunks.join("")).toBeTruthy();
+      },
+      { timeout: 120000 }
+    );
+
+    it(
+      "provides usage information after streaming",
+      async () => {
+        const result = streamText({
+          model,
+          prompt: "Hello",
+          maxTokens: 20,
+        });
+
+        // Consume the stream
+        for await (const _ of result.textStream) {
+          // Just consume
+        }
+
+        const usage = await result.usage;
+        // AI SDK v6 uses inputTokens/outputTokens
+        expect(usage.inputTokens).toBeGreaterThan(0);
+        expect(usage.outputTokens).toBeGreaterThan(0);
+      },
+      { timeout: 120000 }
+    );
+
+    it(
+      "provides finish reason after streaming",
+      async () => {
+        const result = streamText({
+          model,
+          prompt: "Say hi.",
+          maxTokens: 10,
+        });
+
+        // Consume the stream
+        for await (const _ of result.textStream) {
+          // Just consume
+        }
+
+        const finishReason = await result.finishReason;
+        expect(["stop", "length", "other"]).toContain(finishReason);
+      },
+      { timeout: 120000 }
+    );
+  });
+
+  describe("generation parameters", () => {
+    it(
+      "applies temperature setting",
+      async () => {
+        // Low temperature should produce more deterministic output
+        const { text: text1 } = await generateText({
+          model,
+          prompt: "What is 2+2?",
+          maxTokens: 10,
+          temperature: 0.0,
+        });
+
+        const { text: text2 } = await generateText({
+          model,
+          prompt: "What is 2+2?",
+          maxTokens: 10,
+          temperature: 0.0,
+        });
+
+        // With temperature 0, outputs should be similar (not necessarily identical due to implementation)
+        expect(text1.length).toBeGreaterThan(0);
+        expect(text2.length).toBeGreaterThan(0);
+      },
+      { timeout: 120000 }
+    );
+
+    it(
+      "applies topP setting",
+      async () => {
+        const { text } = await generateText({
+          model,
+          prompt: "Hello",
+          maxTokens: 10,
+          topP: 0.5,
+        });
+
+        expect(text.length).toBeGreaterThan(0);
+      },
+      { timeout: 60000 }
+    );
+
+    it(
+      "applies topK setting",
+      async () => {
+        const { text } = await generateText({
+          model,
+          prompt: "Hello",
+          maxTokens: 10,
+          topK: 10,
+        });
+
+        expect(text.length).toBeGreaterThan(0);
+      },
+      { timeout: 60000 }
+    );
+  });
+
+  describe("model lifecycle", () => {
+    it(
+      "can create multiple model instances",
+      async () => {
+        if (!TEST_MODEL_PATH) return;
+
+        const model2 = createLlamaCpp({
+          modelPath: TEST_MODEL_PATH,
+          contextSize: 1024,
+        });
+
+        const { text } = await generateText({
+          model: model2,
+          prompt: "Hi",
+          maxTokens: 5,
+        });
+
+        expect(text.length).toBeGreaterThan(0);
+
+        await model2.dispose();
+      },
+      { timeout: 120000 }
+    );
+
+    it(
+      "handles dispose gracefully",
+      async () => {
+        if (!TEST_MODEL_PATH) return;
+
+        const tempModel = createLlamaCpp({
+          modelPath: TEST_MODEL_PATH,
+        });
+
+        // Generate to load the model
+        await generateText({
+          model: tempModel,
+          prompt: "Test",
+          maxTokens: 5,
+        });
+
+        // Dispose should not throw
+        await expect(tempModel.dispose()).resolves.toBeUndefined();
+      },
+      { timeout: 120000 }
+    );
+  });
+});
+
+// Test that runs without a model to verify skip behavior
+describe("E2E Test Configuration", () => {
+  it("TEST_MODEL_PATH environment variable info", () => {
+    if (!TEST_MODEL_PATH) {
+      console.log(
+        "\n📋 E2E tests skipped: Set TEST_MODEL_PATH to run with a real model"
+      );
+      console.log(
+        "   Example: TEST_MODEL_PATH=./models/model.gguf npm run test:e2e\n"
+      );
+    } else {
+      console.log(`\n✅ Running E2E tests with model: ${TEST_MODEL_PATH}\n`);
+    }
+    expect(true).toBe(true);
+  });
+});

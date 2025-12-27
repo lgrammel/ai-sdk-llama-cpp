@@ -1,4 +1,7 @@
-import { LlamaCppLanguageModel, type LlamaCppModelConfig } from './llama-cpp-language-model.js';
+import {
+  LlamaCppLanguageModel,
+  type LlamaCppModelConfig,
+} from "./llama-cpp-language-model.js";
 
 export interface LlamaCppProviderConfig {
   /**
@@ -18,7 +21,7 @@ export interface LlamaCppProviderConfig {
   gpuLayers?: number;
 
   /**
-   * Number of CPU threads to use (default: 4).
+   * Number of CPU threads to use (default2: 4).
    */
   threads?: number;
 
@@ -57,7 +60,9 @@ export interface LlamaCppProviderConfig {
  * }
  * ```
  */
-export function createLlamaCpp(config: LlamaCppProviderConfig): LlamaCppLanguageModel {
+export function createLlamaCpp(
+  config: LlamaCppProviderConfig
+): LlamaCppLanguageModel {
   const modelConfig: LlamaCppModelConfig = {
     modelPath: config.modelPath,
     contextSize: config.contextSize,
@@ -73,4 +78,3 @@ export function createLlamaCpp(config: LlamaCppProviderConfig): LlamaCppLanguage
  * Default export for convenience.
  */
 export default createLlamaCpp;
-

@@ -41,7 +41,9 @@ export interface LlamaCppGenerationConfig {
   stopSequences?: string[];
 }
 
-function convertFinishReason(reason: string): LanguageModelV3FinishReason {
+export function convertFinishReason(
+  reason: string
+): LanguageModelV3FinishReason {
   let unified: LanguageModelV3FinishReason["unified"];
   switch (reason) {
     case "stop":
@@ -56,7 +58,7 @@ function convertFinishReason(reason: string): LanguageModelV3FinishReason {
   return { unified, raw: reason };
 }
 
-function convertUsage(
+export function convertUsage(
   promptTokens: number,
   completionTokens: number
 ): LanguageModelV3Usage {
@@ -75,7 +77,7 @@ function convertUsage(
   };
 }
 
-function formatPrompt(messages: LanguageModelV3Message[]): string {
+export function formatPrompt(messages: LanguageModelV3Message[]): string {
   let formattedPrompt = "";
 
   // Format messages into a prompt string using Gemma-style format

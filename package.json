@@ -28,7 +28,13 @@
     "build:ts": "tsc",
     "build": "npm run build:native && npm run build:ts",
     "clean": "rm -rf dist build",
-    "prepublishOnly": "npm run build:ts"
+    "prepublishOnly": "npm run build:ts",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "vitest run tests/e2e",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "ai",
@@ -59,9 +65,11 @@
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^2.1.8",
     "ai": "^6.0.3",
     "tsx": "^4.21.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^2.1.8"
   },
   "binary": {
     "napi_versions": [
