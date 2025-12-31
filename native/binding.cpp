@@ -23,7 +23,8 @@ public:
         int n_ctx,
         int n_threads,
         bool debug,
-        const std::string& chat_template
+        const std::string& chat_template,
+        bool embedding
     )
         : Napi::AsyncWorker(callback)
         , model_path_(model_path)
@@ -32,6 +33,7 @@ public:
         , n_threads_(n_threads)
         , debug_(debug)
         , chat_template_(chat_template)
+        , embedding_(embedding)
         , handle_(-1)
         , success_(false)
     {}
@@ -53,6 +55,7 @@ public:
         llama_wrapper::ContextParams ctx_params;
         ctx_params.n_ctx = n_ctx_;
         ctx_params.n_threads = n_threads_;
+        ctx_params.embedding = embedding_;
 
         if (!model->create_context(ctx_params)) {
             SetError("Failed to create context");
@@ -92,6 +95,7 @@ private:
     int n_threads_;
     bool debug_;
     std::string chat_template_;
+    bool embedding_;
     int handle_;
     bool success_;
 };
@@ -238,6 +242,66 @@ private:
     std::mutex tokens_mutex_;
 };
 
+class EmbedWorker : public Napi::AsyncWorker {
+public:
+    EmbedWorker(
+        Napi::Function& callback,
+        int handle,
+        const std::vector<std::string>& texts
+    )
+        : Napi::AsyncWorker(callback)
+        , handle_(handle)
+        , texts_(texts)
+    {}
+
+    void Execute() override {
+        llama_wrapper::LlamaModel* model = nullptr;
+
+        {
+            std::lock_guard<std::mutex> lock(g_models_mutex);
+            auto it = g_models.find(handle_);
+            if (it == g_models.end()) {
+                SetError("Invalid model handle");
+                return;
+            }
+            model = it->second.get();
+        }
+
+        result_ = model->embed(texts_);
+        
+        if (result_.embeddings.empty() && !texts_.empty()) {
+            SetError("Failed to generate embeddings");
+            return;
+        }
+    }
+
+    void OnOK() override {
+        Napi::HandleScope scope(Env());
+
+        // Create embeddings array
+        Napi::Array embeddings_arr = Napi::Array::New(Env(), result_.embeddings.size());
+        for (size_t i = 0; i < result_.embeddings.size(); i++) {
+            const auto& emb = result_.embeddings[i];
+            Napi::Float32Array embedding = Napi::Float32Array::New(Env(), emb.size());
+            for (size_t j = 0; j < emb.size(); j++) {
+                embedding[j] = emb[j];
+            }
+            embeddings_arr.Set(i, embedding);
+        }
+
+        Napi::Object result = Napi::Object::New(Env());
+        result.Set("embeddings", embeddings_arr);
+        result.Set("totalTokens", Napi::Number::New(Env(), result_.total_tokens));
+
+        Callback().Call({Env().Null(), result});
+    }
+
+private:
+    int handle_;
+    std::vector<std::string> texts_;
+    llama_wrapper::EmbeddingResult result_;
+};
+
 // ============================================================================
 // N-API Functions
 // ============================================================================
@@ -264,8 +328,10 @@ Napi::Value LoadModel(const Napi::CallbackInfo& info) {
         options.Get("debug").As<Napi::Boolean>().Value() : false;
     std::string chat_template = options.Has("chatTemplate") ?
         options.Get("chatTemplate").As<Napi::String>().Utf8Value() : "auto";
+    bool embedding = options.Has("embedding") ?
+        options.Get("embedding").As<Napi::Boolean>().Value() : false;
 
-    auto worker = new LoadModelWorker(callback, model_path, n_gpu_layers, n_ctx, n_threads, debug, chat_template);
+    auto worker = new LoadModelWorker(callback, model_path, n_gpu_layers, n_ctx, n_threads, debug, chat_template, embedding);
     worker->Queue();
 
     return env.Undefined();
@@ -416,6 +482,36 @@ Napi::Value IsModelLoaded(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, loaded);
 }
 
+Napi::Value Embed(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+
+    if (info.Length() < 3 || !info[0].IsNumber() || !info[1].IsObject() || !info[2].IsFunction()) {
+        Napi::TypeError::New(env, "Expected (handle, options, callback)").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    int handle = info[0].As<Napi::Number>().Int32Value();
+    Napi::Object options = info[1].As<Napi::Object>();
+    Napi::Function callback = info[2].As<Napi::Function>();
+
+    // Parse texts array
+    if (!options.Has("texts") || !options.Get("texts").IsArray()) {
+        Napi::TypeError::New(env, "Expected texts array in options").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    Napi::Array texts_arr = options.Get("texts").As<Napi::Array>();
+    std::vector<std::string> texts;
+    for (uint32_t i = 0; i < texts_arr.Length(); i++) {
+        texts.push_back(texts_arr.Get(i).As<Napi::String>().Utf8Value());
+    }
+
+    auto worker = new EmbedWorker(callback, handle, texts);
+    worker->Queue();
+
+    return env.Undefined();
+}
+
 // ============================================================================
 // Module Initialization
 // ============================================================================
@@ -426,6 +522,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("generate", Napi::Function::New(env, Generate));
     exports.Set("generateStream", Napi::Function::New(env, GenerateStream));
     exports.Set("isModelLoaded", Napi::Function::New(env, IsModelLoaded));
+    exports.Set("embed", Napi::Function::New(env, Embed));
     return exports;
 }
 

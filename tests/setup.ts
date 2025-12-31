@@ -2,10 +2,11 @@
 
 // Environment variable for E2E tests
 export const TEST_MODEL_PATH = process.env.TEST_MODEL_PATH;
+export const TEST_EMBEDDING_PATH = process.env.TEST_EMBEDDING_PATH;
 
 // Helper to check if E2E tests should run
 export function shouldRunE2ETests(): boolean {
-  return !!TEST_MODEL_PATH;
+  return !!TEST_MODEL_PATH || !!TEST_EMBEDDING_PATH;
 }
 
 // Skip helper for conditional E2E tests

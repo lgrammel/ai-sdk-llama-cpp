@@ -4,6 +4,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <cstdio>
+#include <cmath>
 
 namespace llama_wrapper {
 
@@ -116,9 +117,102 @@ bool LlamaModel::create_context(const ContextParams& params) {
     ctx_params.n_batch = params.n_batch;
     ctx_params.n_threads = params.n_threads;
     ctx_params.n_threads_batch = params.n_threads;
+    
+    if (params.embedding) {
+        ctx_params.embeddings = true;
+        ctx_params.pooling_type = LLAMA_POOLING_TYPE_MEAN;
+    }
 
     ctx_ = llama_init_from_model(model_, ctx_params);
     return ctx_ != nullptr;
+}
+
+void LlamaModel::normalize_embedding(float* embedding, int n_embd) {
+    float sum = 0.0f;
+    for (int i = 0; i < n_embd; i++) {
+        sum += embedding[i] * embedding[i];
+    }
+    float norm = std::sqrt(sum);
+    if (norm > 0.0f) {
+        for (int i = 0; i < n_embd; i++) {
+            embedding[i] /= norm;
+        }
+    }
+}
+
+EmbeddingResult LlamaModel::embed(const std::vector<std::string>& texts) {
+    EmbeddingResult result;
+    result.total_tokens = 0;
+
+    if (!ctx_ || !model_) {
+        return result;
+    }
+
+    const int n_embd = llama_model_n_embd(model_);
+    const enum llama_pooling_type pooling_type = llama_pooling_type(ctx_);
+
+    // Process each text
+    for (size_t seq_id = 0; seq_id < texts.size(); seq_id++) {
+        const std::string& text = texts[seq_id];
+
+        // Tokenize the text
+        std::vector<int32_t> tokens = tokenize(text, true);
+        result.total_tokens += tokens.size();
+
+        if (tokens.empty()) {
+            // Return zero embedding for empty text
+            result.embeddings.push_back(std::vector<float>(n_embd, 0.0f));
+            continue;
+        }
+
+        // Clear the memory/KV cache
+        llama_memory_t mem = llama_get_memory(ctx_);
+        if (mem) {
+            llama_memory_clear(mem, true);
+        }
+
+        // Create batch with sequence ID
+        llama_batch batch = llama_batch_init(tokens.size(), 0, 1);
+        for (size_t i = 0; i < tokens.size(); i++) {
+            batch.token[i] = tokens[i];
+            batch.pos[i] = i;
+            batch.n_seq_id[i] = 1;
+            batch.seq_id[i][0] = seq_id;
+            batch.logits[i] = true;  // We want embeddings for all tokens
+        }
+        batch.n_tokens = tokens.size();
+
+        // Decode to get embeddings
+        if (llama_decode(ctx_, batch) != 0) {
+            llama_batch_free(batch);
+            result.embeddings.push_back(std::vector<float>(n_embd, 0.0f));
+            continue;
+        }
+
+        // Extract embedding based on pooling type
+        const float* embd = nullptr;
+        if (pooling_type == LLAMA_POOLING_TYPE_NONE) {
+            // Get embedding for last token
+            embd = llama_get_embeddings_ith(ctx_, tokens.size() - 1);
+        } else {
+            // Get pooled embedding for the sequence
+            embd = llama_get_embeddings_seq(ctx_, seq_id);
+        }
+
+        if (embd) {
+            std::vector<float> embedding(n_embd);
+            std::copy(embd, embd + n_embd, embedding.begin());
+            // Normalize the embedding (L2 normalization)
+            normalize_embedding(embedding.data(), n_embd);
+            result.embeddings.push_back(std::move(embedding));
+        } else {
+            result.embeddings.push_back(std::vector<float>(n_embd, 0.0f));
+        }
+
+        llama_batch_free(batch);
+    }
+
+    return result;
 }
 
 std::string LlamaModel::apply_chat_template(const std::vector<ChatMessage>& messages) {
