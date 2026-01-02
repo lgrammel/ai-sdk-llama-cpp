@@ -4,6 +4,7 @@ project(llama_binding)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Build llama.cpp as a static library
 set(LLAMA_STATIC ON CACHE BOOL "Build llama.cpp as static library" FORCE)
@@ -32,6 +33,16 @@ execute_process(
 )
 string(REPLACE "\"" "" NODE_ADDON_API_DIR ${NODE_ADDON_API_DIR})
 include_directories(${NODE_ADDON_API_DIR})
+
+# Find node-api-headers
+execute_process(
+    COMMAND node -p "require('node-api-headers').include_dir"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE NODE_API_HEADERS_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+string(REPLACE "\"" "" NODE_API_HEADERS_DIR ${NODE_API_HEADERS_DIR})
+include_directories(${NODE_API_HEADERS_DIR})
 
 # Include llama.cpp headers
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../llama.cpp/include)

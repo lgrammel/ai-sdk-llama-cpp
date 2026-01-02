@@ -2,7 +2,10 @@ import {
   LlamaCppLanguageModel,
   type LlamaCppModelConfig,
 } from "./llama-cpp-language-model.js";
-import { LlamaCppEmbeddingModel } from "./llama-cpp-embedding-model.js";
+import {
+  LlamaCppEmbeddingModel,
+  type LlamaCppEmbeddingModelConfig,
+} from "./llama-cpp-embedding-model.js";
 
 export interface LlamaCppProviderConfig {
   /**
@@ -11,7 +14,8 @@ export interface LlamaCppProviderConfig {
   modelPath: string;
 
   /**
-   * Maximum context size (default: 2048).
+   * Maximum context size.
+   * If not specified (or 0), uses the model's training context size from GGUF metadata.
    */
   contextSize?: number;
 
@@ -22,7 +26,7 @@ export interface LlamaCppProviderConfig {
   gpuLayers?: number;
 
   /**
-   * Number of CPU threads to use (default2: 4).
+   * Number of CPU threads to use (default: 4).
    */
   threads?: number;
 
@@ -33,13 +37,13 @@ export interface LlamaCppProviderConfig {
 }
 
 export interface LlamaCppProvider {
-  (config: LlamaCppProviderConfig): LlamaCppLanguageModel;
-  languageModel(config: LlamaCppProviderConfig): LlamaCppLanguageModel;
-  embedding(config: LlamaCppProviderConfig): LlamaCppEmbeddingModel;
+  (config: LlamaCppModelConfig): LlamaCppLanguageModel;
+  languageModel(config: LlamaCppModelConfig): LlamaCppLanguageModel;
+  embedding(config: LlamaCppEmbeddingModelConfig): LlamaCppEmbeddingModel;
 }
 
 function createLlamaCpp(): LlamaCppProvider {
-  const provider = (config: LlamaCppProviderConfig): LlamaCppLanguageModel => {
+  const provider = (config: LlamaCppModelConfig): LlamaCppLanguageModel => {
     const modelConfig: LlamaCppModelConfig = {
       modelPath: config.modelPath,
       contextSize: config.contextSize,
@@ -53,7 +57,7 @@ function createLlamaCpp(): LlamaCppProvider {
 
   provider.languageModel = provider;
 
-  provider.embedding = (config: LlamaCppProviderConfig) => {
+  provider.embedding = (config: LlamaCppEmbeddingModelConfig) => {
     return new LlamaCppEmbeddingModel(config);
   };
 

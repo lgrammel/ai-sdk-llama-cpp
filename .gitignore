@@ -5,6 +5,9 @@ node_modules/
 dist/
 build/
 
+# clangd cache
+.cache/
+
 # Downloaded dependencies (cloned during postinstall)
 llama.cpp/
 

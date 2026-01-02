@@ -1,5 +1,6 @@
 #include "llama-wrapper.h"
 #include <atomic>
+#include <cstring>
 #include <memory>
 #include <mutex>
 #include <napi.h>
@@ -18,10 +19,10 @@ class LoadModelWorker : public Napi::AsyncWorker {
 public:
   LoadModelWorker(Napi::Function &callback, const std::string &model_path, int n_gpu_layers,
                   int n_ctx, int n_threads, bool debug, const std::string &chat_template,
-                  bool embedding)
+                  bool embedding, int pooling_type)
       : Napi::AsyncWorker(callback), model_path_(model_path), n_gpu_layers_(n_gpu_layers),
         n_ctx_(n_ctx), n_threads_(n_threads), debug_(debug), chat_template_(chat_template),
-        embedding_(embedding), handle_(-1), success_(false) {}
+        embedding_(embedding), pooling_type_(pooling_type), handle_(-1), success_(false) {}
 
   void Execute() override {
     auto model = std::make_unique<llama_wrapper::LlamaModel>();
@@ -41,6 +42,7 @@ public:
     ctx_params.n_ctx = n_ctx_;
     ctx_params.n_threads = n_threads_;
     ctx_params.embedding = embedding_;
+    ctx_params.pooling_type = static_cast<llama_wrapper::PoolingType>(pooling_type_);
 
     if (!model->create_context(ctx_params)) {
       SetError("Failed to create context");
@@ -75,6 +77,7 @@ private:
   bool debug_;
   std::string chat_template_;
   bool embedding_;
+  int pooling_type_;
   int handle_;
   bool success_;
 };
@@ -202,8 +205,10 @@ private:
 
 class EmbedWorker : public Napi::AsyncWorker {
 public:
-  EmbedWorker(Napi::Function &callback, int handle, const std::vector<std::string> &texts)
-      : Napi::AsyncWorker(callback), handle_(handle), texts_(texts) {}
+  EmbedWorker(Napi::Function &callback, int handle, const std::vector<std::string> &texts,
+              bool normalize, float overlap)
+      : Napi::AsyncWorker(callback), handle_(handle), texts_(texts), normalize_(normalize),
+        overlap_(overlap) {}
 
   void Execute() override {
     llama_wrapper::LlamaModel *model = nullptr;
@@ -218,10 +223,19 @@ public:
       model = it->second.get();
     }
 
-    result_ = model->embed(texts_);
+    try {
+      llama_wrapper::EmbedParams embed_params;
+      embed_params.normalize = normalize_;
+      embed_params.overlap = overlap_;
 
-    if (result_.embeddings.empty() && !texts_.empty()) {
-      SetError("Failed to generate embeddings");
+      result_ = model->embed(texts_, embed_params);
+
+      if (result_.embeddings.empty() && !texts_.empty()) {
+        SetError("Failed to generate embeddings");
+        return;
+      }
+    } catch (const std::exception &e) {
+      SetError(e.what());
       return;
     }
   }
@@ -234,9 +248,7 @@ public:
     for (size_t i = 0; i < result_.embeddings.size(); i++) {
       const auto &emb = result_.embeddings[i];
       Napi::Float32Array embedding = Napi::Float32Array::New(Env(), emb.size());
-      for (size_t j = 0; j < emb.size(); j++) {
-        embedding[j] = emb[j];
-      }
+      std::memcpy(embedding.Data(), emb.data(), emb.size() * sizeof(float));
       embeddings_arr.Set(i, embedding);
     }
 
@@ -250,6 +262,8 @@ public:
 private:
   int handle_;
   std::vector<std::string> texts_;
+  bool normalize_;
+  float overlap_;
   llama_wrapper::EmbeddingResult result_;
 };
 
@@ -271,9 +285,8 @@ Napi::Value LoadModel(const Napi::CallbackInfo &info) {
   std::string model_path = options.Get("modelPath").As<Napi::String>().Utf8Value();
   int n_gpu_layers =
       options.Has("gpuLayers") ? options.Get("gpuLayers").As<Napi::Number>().Int32Value() : 99;
-  int n_ctx = options.Has("contextSize")
-                  ? options.Get("contextSize").As<Napi::Number>().Int32Value()
-                  : 2048;
+  int n_ctx =
+      options.Has("contextSize") ? options.Get("contextSize").As<Napi::Number>().Int32Value() : 0;
   int n_threads =
       options.Has("threads") ? options.Get("threads").As<Napi::Number>().Int32Value() : 4;
   bool debug = options.Has("debug") ? options.Get("debug").As<Napi::Boolean>().Value() : false;
@@ -282,9 +295,12 @@ Napi::Value LoadModel(const Napi::CallbackInfo &info) {
                                   : "auto";
   bool embedding =
       options.Has("embedding") ? options.Get("embedding").As<Napi::Boolean>().Value() : false;
+  // Pooling type: -1=UNSPECIFIED (auto-detect, default), 0=NONE, 1=MEAN, 2=CLS, 3=LAST
+  int pooling_type =
+      options.Has("poolingType") ? options.Get("poolingType").As<Napi::Number>().Int32Value() : -1;
 
   auto worker = new LoadModelWorker(callback, model_path, n_gpu_layers, n_ctx, n_threads, debug,
-                                    chat_template, embedding);
+                                    chat_template, embedding, pooling_type);
   worker->Queue();
 
   return env.Undefined();
@@ -460,7 +476,13 @@ Napi::Value Embed(const Napi::CallbackInfo &info) {
     texts.push_back(texts_arr.Get(i).As<Napi::String>().Utf8Value());
   }
 
-  auto worker = new EmbedWorker(callback, handle, texts);
+  // Parse embed options
+  bool normalize =
+      options.Has("normalize") ? options.Get("normalize").As<Napi::Boolean>().Value() : true;
+  float overlap =
+      options.Has("overlap") ? options.Get("overlap").As<Napi::Number>().FloatValue() : 0.1f;
+
+  auto worker = new EmbedWorker(callback, handle, texts, normalize, overlap);
   worker->Queue();
 
   return env.Undefined();

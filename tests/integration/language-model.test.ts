@@ -121,7 +121,7 @@ describe("LlamaCppLanguageModel Integration", () => {
         prompt: testMessages,
       });
 
-      expect(result.request.body).toHaveProperty("maxTokens", 256);
+      expect(result.request.body).toHaveProperty("maxTokens", 2048);
     });
 
     it("applies default temperature when not specified", async () => {
@@ -373,7 +373,7 @@ describe("LlamaCppLanguageModel Integration", () => {
 
       expect(nativeBinding.loadModel).toHaveBeenCalledWith({
         modelPath: "/minimal.gguf",
-        contextSize: 2048,
+        contextSize: 0,
         gpuLayers: 99,
         threads: 4,
         debug: false,

@@ -28,11 +28,23 @@ struct ChatMessage {
   std::string content;
 };
 
+// Pooling type for embeddings (mirrors llama_pooling_type)
+enum class PoolingType {
+  UNSPECIFIED = -1, // Auto-detect from model metadata
+  NONE = 0,
+  MEAN = 1,
+  CLS = 2,
+  LAST = 3,
+  RANK = 4,
+};
+
 struct ContextParams {
-  int n_ctx = 2048;       // Context size
+  int n_ctx = 0;          // Context size (0 = use model's training context)
   int n_batch = 512;      // Batch size for prompt processing
   int n_threads = 4;      // Number of threads
-  bool embedding = false; // Enable embedding mode with mean pooling
+  bool embedding = false; // Enable embedding mode
+  PoolingType pooling_type =
+      PoolingType::UNSPECIFIED; // Pooling strategy (UNSPECIFIED = auto-detect)
 };
 
 struct GenerationParams {
@@ -50,6 +62,11 @@ struct GenerationResult {
   int prompt_tokens;
   int completion_tokens;
   std::string finish_reason; // "stop", "length", or "error"
+};
+
+struct EmbedParams {
+  bool normalize = true; // L2 normalize embeddings (default: true for cosine similarity)
+  float overlap = 0.1f;  // Overlap fraction for chunking long texts (default: 10%)
 };
 
 struct EmbeddingResult {
@@ -100,7 +117,8 @@ public:
                                       const GenerationParams &params, TokenCallback callback);
 
   // Generate embeddings for multiple texts
-  EmbeddingResult embed(const std::vector<std::string> &texts);
+  EmbeddingResult embed(const std::vector<std::string> &texts,
+                        const EmbedParams &params = EmbedParams{});
 
 private:
   llama_model *model_ = nullptr;
@@ -115,6 +133,14 @@ private:
   // Normalize an embedding vector (L2 normalization)
   static void normalize_embedding(float *embedding, int n_embd);
 
+  // Process a single chunk of tokens and return its embedding (unnormalized)
+  std::vector<float> embed_chunk(const std::vector<int32_t> &tokens, int seq_id, int n_embd,
+                                 int pooling_type);
+
+  // Process multiple texts in a single batch (for short texts that fit in context)
+  std::vector<std::vector<float>> embed_batch(const std::vector<std::vector<int32_t>> &all_tokens,
+                                              int n_embd, int pooling_type);
+
   // Detokenize a single token
   std::string detokenize(int32_t token);
 
@@ -123,6 +149,10 @@ private:
 
   // Check if token is end-of-sequence
   bool is_eos_token(int32_t token);
+
+  // Check if model is an encoder model (non-causal attention) from GGUF metadata
+  // Encoder models don't support multi-sequence batching well
+  bool is_encoder_model() const;
 };
 
 } // namespace llama_wrapper

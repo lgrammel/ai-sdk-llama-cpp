@@ -29,7 +29,7 @@ describeE2E("E2E Generation Tests", () => {
     model = llamaCpp({
       modelPath: TEST_MODEL_PATH,
       contextSize: 2048,
-      gpuLayers: 0, // Use CPU for CI compatibility
+      gpuLayers: process.env.CI ? 0 : 99, // Use CPU for CI compatibility
       threads: 4,
     });
   });

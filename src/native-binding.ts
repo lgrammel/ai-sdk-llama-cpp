@@ -24,10 +24,19 @@ export interface LoadModelOptions {
   chatTemplate?: string;
   /**
    * Whether to load the model for embedding generation.
-   * When true, creates an embedding context with mean pooling enabled.
+   * When true, creates an embedding context with pooling enabled.
    * Default: false
    */
   embedding?: boolean;
+  /**
+   * Pooling type for embeddings.
+   * - -1: UNSPECIFIED (auto-detect from model metadata, default)
+   * - 0: NONE (use last token embedding)
+   * - 1: MEAN (average all token embeddings)
+   * - 2: CLS (use first token embedding)
+   * - 3: LAST (use last token embedding)
+   */
+  poolingType?: number;
 }
 
 export interface ChatMessage {
@@ -55,6 +64,16 @@ export interface GenerateResult {
 
 export interface EmbedOptions {
   texts: string[];
+  /**
+   * Whether to L2 normalize embeddings (default: true).
+   * Set to true for cosine similarity, false for dot product.
+   */
+  normalize?: boolean;
+  /**
+   * Overlap fraction for chunking long texts (default: 0.1 = 10%).
+   * Used when text exceeds the context size.
+   */
+  overlap?: number;
 }
 
 export interface EmbedResult {

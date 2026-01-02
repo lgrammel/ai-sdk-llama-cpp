@@ -29,7 +29,7 @@ describeE2E("E2E Embedding Tests", () => {
     model = llamaCpp.embedding({
       modelPath: TEST_EMBEDDING_PATH,
       contextSize: 2048,
-      gpuLayers: 0, // Use CPU for CI compatibility
+      gpuLayers: process.env.CI ? 0 : 99, // Use CPU for CI compatibility
       threads: 4,
     });
   });
@@ -41,78 +41,110 @@ describeE2E("E2E Embedding Tests", () => {
   });
 
   describe("embed", () => {
-    it(
-      "embeds text",
-      async () => {
-        const { embedding, usage } = await embed({
-          model,
-          value: "Hello, world!",
-        });
+    it("embeds text", async () => {
+      const { embedding, usage } = await embed({
+        model,
+        value: "Hello, world!",
+      });
 
-        expect(embedding.length).toBeGreaterThan(0);
-        expect(usage.tokens).toBeGreaterThan(0);
-      },
-      { timeout: 120000 }
-    );
+      expect(embedding.length).toBeGreaterThan(0);
+      expect(usage.tokens).toBeGreaterThan(0);
+    });
 
-    it(
-      "embeds multiple texts",
-      async () => {
-        const { embeddings, usage } = await embedMany({
-          model,
-          values: ["Hello, world!", "Hello, universe!"],
-        });
+    it("embeds really long text", async () => {
+      const { embedding, usage } = await embed({
+        model,
+        value: "Hello, world! ".repeat(1000),
+      });
 
-        expect(embeddings.length).toBe(2);
-        expect(usage.tokens).toBeGreaterThan(0);
-      },
-      { timeout: 120000 }
-    );
+      expect(embedding.length).toBeGreaterThan(0);
+      expect(usage.tokens).toBeGreaterThan(0);
+      // Snapshot can be used to compare embedding outputs
+      // expect(embedding).toMatchInlineSnapshot()
+    });
+
+    it("embeds multiple texts", async () => {
+      const { embeddings, usage } = await embedMany({
+        model,
+        values: ["Hello, world!", "Hello, universe!"],
+      });
+
+      expect(embeddings.length).toBe(2);
+      expect(usage.tokens).toBeGreaterThan(0);
+    });
+
+    it("embeds text using context size defined in GGUF metadata", async () => {
+      const tempModel = llamaCpp.embedding({
+        modelPath: TEST_EMBEDDING_PATH!,
+        gpuLayers: process.env.CI ? 0 : 99, // Use CPU for CI compatibility
+      });
+
+      const { embedding, usage } = await embed({
+        model: tempModel,
+        value: "Hello, world!",
+      });
+
+      expect(embedding.length).toBeGreaterThan(0);
+      expect(usage.tokens).toBeGreaterThan(0);
+
+      await tempModel.dispose();
+    });
+
+    it("embeds with supporting mean pooling type", async () => {
+      const tempModel = llamaCpp.embedding({
+        modelPath: TEST_EMBEDDING_PATH!,
+        gpuLayers: process.env.CI ? 0 : 99, // Use CPU for CI compatibility
+        poolingType: "mean",
+      });
+
+      const { embedding, usage } = await embed({
+        model: tempModel,
+        value: "Hello, world! ".repeat(1000),
+      });
+
+      expect(embedding.length).toBeGreaterThan(0);
+      expect(usage.tokens).toBeGreaterThan(0);
+      // Snapshot can be used to compare embedding outputs
+      // expect(embedding).toMatchInlineSnapshot()
+      await tempModel.dispose();
+    });
   });
 
   describe("model lifecycle", () => {
-    it(
-      "can create multiple model instances",
-      async () => {
-        if (!TEST_EMBEDDING_PATH) return;
+    it("can create multiple model instances", async () => {
+      if (!TEST_EMBEDDING_PATH) return;
 
-        const model2 = llamaCpp.embedding({
-          modelPath: TEST_EMBEDDING_PATH,
-          contextSize: 1024,
-        });
+      const model2 = llamaCpp.embedding({
+        modelPath: TEST_EMBEDDING_PATH,
+        contextSize: 1024,
+      });
 
-        const { embedding } = await embed({
-          model: model2,
-          value: "Hello, world!",
-        });
+      const { embedding } = await embed({
+        model: model2,
+        value: "Hello, world!",
+      });
 
-        expect(embedding.length).toBeGreaterThan(0);
+      expect(embedding.length).toBeGreaterThan(0);
 
-        await model2.dispose();
-      },
-      { timeout: 120000 }
-    );
+      await model2.dispose();
+    });
 
-    it(
-      "handles dispose gracefully",
-      async () => {
-        if (!TEST_EMBEDDING_PATH) return;
+    it("handles dispose gracefully", async () => {
+      if (!TEST_EMBEDDING_PATH) return;
 
-        const tempModel = llamaCpp.embedding({
-          modelPath: TEST_EMBEDDING_PATH,
-        });
+      const tempModel = llamaCpp.embedding({
+        modelPath: TEST_EMBEDDING_PATH,
+      });
 
-        // Embed to load the model
-        await embed({
-          model: tempModel,
-          value: "Hello, world!",
-        });
+      // Embed to load the model
+      await embed({
+        model: tempModel,
+        value: "Hello, world!",
+      });
 
-        // Dispose should not throw
-        await expect(tempModel.dispose()).resolves.toBeUndefined();
-      },
-      { timeout: 120000 }
-    );
+      // Dispose should not throw
+      await expect(tempModel.dispose()).resolves.toBeUndefined();
+    });
   });
 });
 
