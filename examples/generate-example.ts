@@ -1,32 +1,16 @@
 import { generateText } from "ai";
 import { llamaCpp } from "../dist/index.js";
 
-async function main() {
-  const model = llamaCpp({
-    modelPath: "./models/gemma-3-12b-it-Q3_K_M.gguf",
-    contextSize: 4096,
-    // debug: true, // Uncomment to see verbose llama.cpp output
-  });
+const model = llamaCpp({ modelPath: "./models/gemma-3-12b-it-Q3_K_M.gguf" });
 
-  try {
-    const { text } = await generateText({
-      model,
-      messages: [
-        {
-          role: "user",
-          content: "Explain what a neural network is in 2-3 sentences.",
-        },
-      ],
-      maxOutputTokens: 150,
-    });
+const result = await generateText({
+  model,
+  prompt: "Invent a new holiday and describe its traditions.",
+});
 
-    console.log(text);
-  } catch (error) {
-    console.error("Error during generation:", error);
-  } finally {
-    // Properly dispose the model to avoid Metal cleanup errors
-    await model.dispose();
-  }
-}
+console.log(result.text);
+console.log();
+console.log("Usage:", result.usage);
+console.log("Finish reason:", result.finishReason);
 
-main().catch(console.error);
+await model.dispose();
