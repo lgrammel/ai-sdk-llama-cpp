@@ -40,6 +40,7 @@ struct GenerationParams {
     int top_k = 40;
     float repeat_penalty = 1.1f;
     std::vector<std::string> stop_sequences;
+    std::string grammar;  // GBNF grammar string for structured output
 };
 
 struct GenerationResult {

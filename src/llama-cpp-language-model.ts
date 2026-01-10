@@ -22,6 +22,9 @@ import {
   type ChatMessage,
 } from "./native-binding.js";
 
+import type { JSONSchema7 } from "@ai-sdk/provider";
+import { convertJsonSchemaToGrammar } from "./json-schema-to-grammar.js";
+
 export interface LlamaCppModelConfig {
   modelPath: string;
   contextSize?: number;
@@ -207,6 +210,12 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
 
     const messages = convertMessages(options.prompt);
 
+    // Convert JSON schema to GBNF grammar if structured output is requested
+    let grammar: string | undefined;
+    if (options.responseFormat?.type === "json" && options.responseFormat.schema) {
+      grammar = convertJsonSchemaToGrammar(options.responseFormat.schema as JSONSchema7);
+    }
+
     const generateOptions: GenerateOptions = {
       messages,
       maxTokens: options.maxOutputTokens ?? 256,
@@ -214,6 +223,7 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
       topP: options.topP ?? 0.9,
       topK: options.topK ?? 40,
       stopSequences: options.stopSequences,
+      grammar,
     };
 
     const result = await generate(handle, generateOptions);
@@ -247,6 +257,12 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
 
     const messages = convertMessages(options.prompt);
 
+    // Convert JSON schema to GBNF grammar if structured output is requested
+    let grammar: string | undefined;
+    if (options.responseFormat?.type === "json" && options.responseFormat.schema) {
+      grammar = convertJsonSchemaToGrammar(options.responseFormat.schema as JSONSchema7);
+    }
+
     const generateOptions: GenerateOptions = {
       messages,
       maxTokens: options.maxOutputTokens ?? 256,
@@ -254,6 +270,7 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
       topP: options.topP ?? 0.9,
       topK: options.topK ?? 40,
       stopSequences: options.stopSequences,
+      grammar,
     };
 
     const textId = crypto.randomUUID();

@@ -34,6 +34,8 @@ export interface GenerateOptions {
   topP?: number;
   topK?: number;
   stopSequences?: string[];
+  /** GBNF grammar string for structured output */
+  grammar?: string;
 }
 
 export interface GenerateResult {

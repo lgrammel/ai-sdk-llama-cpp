@@ -183,6 +183,15 @@ void LlamaModel::create_sampler(const GenerationParams& params) {
     // Create a sampler chain
     sampler_ = llama_sampler_chain_init(llama_sampler_chain_default_params());
 
+    // Add grammar sampler first if grammar is provided (constrains token generation)
+    if (!params.grammar.empty()) {
+        const llama_vocab* vocab = llama_model_get_vocab(model_);
+        llama_sampler* grammar_sampler = llama_sampler_init_grammar(vocab, params.grammar.c_str(), "root");
+        if (grammar_sampler) {
+            llama_sampler_chain_add(sampler_, grammar_sampler);
+        }
+    }
+
     // Add samplers to the chain
     llama_sampler_chain_add(sampler_, llama_sampler_init_top_k(params.top_k));
     llama_sampler_chain_add(sampler_, llama_sampler_init_top_p(params.top_p, 1));

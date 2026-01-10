@@ -341,6 +341,10 @@ Napi::Value Generate(const Napi::CallbackInfo& info) {
         }
     }
 
+    if (options.Has("grammar") && options.Get("grammar").IsString()) {
+        params.grammar = options.Get("grammar").As<Napi::String>().Utf8Value();
+    }
+
     auto worker = new GenerateWorker(callback, handle, messages, params);
     worker->Queue();
 
@@ -383,6 +387,10 @@ Napi::Value GenerateStream(const Napi::CallbackInfo& info) {
         for (uint32_t i = 0; i < stop_arr.Length(); i++) {
             params.stop_sequences.push_back(stop_arr.Get(i).As<Napi::String>().Utf8Value());
         }
+    }
+
+    if (options.Has("grammar") && options.Get("grammar").IsString()) {
+        params.grammar = options.Get("grammar").As<Napi::String>().Utf8Value();
     }
 
     auto worker = new StreamGenerateWorker(done_callback, handle, messages, params, token_callback);

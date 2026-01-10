@@ -13,6 +13,7 @@ This package loads llama.cpp directly into Node.js memory via native C++ binding
 - **Native Performance**: Direct C++ bindings using node-addon-api (N-API)
 - **GPU Acceleration**: Automatic Metal support on macOS
 - **Streaming & Non-streaming**: Full support for both `generateText` and `streamText`
+- **Structured Output**: Generate JSON objects with schema validation using `generateObject`
 - **Chat Templates**: Automatic or configurable chat template formatting (llama3, chatml, gemma, etc.)
 - **ESM Only**: Modern ECMAScript modules, no CommonJS
 - **GGUF Support**: Load any GGUF-format model
@@ -95,6 +96,63 @@ try {
   model.dispose();
 }
 ```
+
+### Structured Output
+
+Generate type-safe JSON objects that conform to a schema using `generateText` with `Output.object()`:
+
+```typescript
+import { generateText, Output } from "ai";
+import { z } from "zod";
+import { llamaCpp } from "ai-sdk-llama-cpp";
+
+// Define your schema with Zod
+const RecipeSchema = z.object({
+  name: z.string(),
+  ingredients: z.array(
+    z.object({
+      name: z.string(),
+      amount: z.string(),
+    })
+  ),
+  steps: z.array(z.string()),
+});
+
+const model = llamaCpp({
+  modelPath: "./models/your-model.gguf",
+  contextSize: 4096,
+});
+
+try {
+  const { output: recipe } = await generateText({
+    model,
+    output: Output.object({
+      schema: RecipeSchema,
+    }),
+    prompt: "Generate a recipe for chocolate chip cookies.",
+    maxTokens: 500,
+  });
+
+  // recipe is fully typed as { name: string, ingredients: {...}[], steps: string[] }
+  console.log(recipe.name);
+  console.log(recipe.ingredients);
+  console.log(recipe.steps);
+} finally {
+  model.dispose();
+}
+```
+
+The structured output feature uses GBNF grammar constraints to ensure the model generates valid JSON that conforms to your schema. This works with:
+
+- **Primitive types**: `string`, `number`, `integer`, `boolean`, `null`
+- **Objects**: With `properties`, `required`, and `additionalProperties`
+- **Arrays**: With `items`, `minItems`, `maxItems`
+- **Enums and constants**: `enum`, `const`
+- **Composition**: `oneOf`, `anyOf`, `allOf`
+- **String constraints**: `minLength`, `maxLength`, `pattern`
+- **Number constraints**: `minimum`, `maximum` (for integers)
+- **String formats**: `date`, `time`, `date-time`, `uuid`
+- **References**: Local `$ref` to `$defs`/`definitions`
 
 ### Configuration Options
 
@@ -204,7 +262,6 @@ This is a minimal implementation with the following limitations:
 - **macOS only**: Windows and Linux are not supported
 - **No tool/function calling**: Tool calls are not supported
 - **No image inputs**: Only text prompts are supported
-- **No JSON mode**: Structured output generation is not supported
 
 ## Development
 
