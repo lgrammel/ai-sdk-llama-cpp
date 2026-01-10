@@ -69,7 +69,7 @@ try {
 
   console.log(text);
 } finally {
-  model.dispose();
+  await model.dispose();
 }
 ```
 
@@ -84,53 +84,46 @@ const model = llamaCpp({
 });
 
 try {
-  const { textStream } = await streamText({
+  const result = streamText({
     model,
     prompt: "Write a haiku about programming.",
   });
 
-  for await (const chunk of textStream) {
+  for await (const chunk of result.textStream) {
     process.stdout.write(chunk);
   }
 } finally {
-  model.dispose();
+  await model.dispose();
 }
 ```
 
 ### Structured Output
 
-Generate type-safe JSON objects that conform to a schema using `generateText` with `Output.object()`:
+Generate type-safe JSON objects that conform to a schema using `generateObject`:
 
 ```typescript
-import { generateText, Output } from "ai";
+import { generateObject } from "ai";
 import { z } from "zod";
 import { llamaCpp } from "ai-sdk-llama-cpp";
 
-// Define your schema with Zod
-const RecipeSchema = z.object({
-  name: z.string(),
-  ingredients: z.array(
-    z.object({
-      name: z.string(),
-      amount: z.string(),
-    })
-  ),
-  steps: z.array(z.string()),
-});
-
 const model = llamaCpp({
   modelPath: "./models/your-model.gguf",
-  contextSize: 4096,
 });
 
 try {
-  const { output: recipe } = await generateText({
+  const { object: recipe } = await generateObject({
     model,
-    output: Output.object({
-      schema: RecipeSchema,
+    schema: z.object({
+      name: z.string(),
+      ingredients: z.array(
+        z.object({
+          name: z.string(),
+          amount: z.string(),
+        })
+      ),
+      steps: z.array(z.string()),
     }),
     prompt: "Generate a recipe for chocolate chip cookies.",
-    maxTokens: 500,
   });
 
   // recipe is fully typed as { name: string, ingredients: {...}[], steps: string[] }
@@ -138,7 +131,7 @@ try {
   console.log(recipe.ingredients);
   console.log(recipe.steps);
 } finally {
-  model.dispose();
+  await model.dispose();
 }
 ```
 
@@ -207,7 +200,7 @@ try {
     stopSequences: ["\n"], // Stop generation at these sequences
   });
 } finally {
-  model.dispose();
+  await model.dispose();
 }
 ```
 
