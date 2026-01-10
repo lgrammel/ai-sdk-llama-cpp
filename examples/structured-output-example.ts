@@ -4,26 +4,28 @@ import { llamaCpp } from "../dist/index.js";
 
 const model = llamaCpp({ modelPath: "./models/gemma-3-12b-it-Q3_K_M.gguf" });
 
-const result = await generateObject({
-  model,
-  schema: z.object({
-    recipe: z.object({
-      name: z.string(),
-      ingredients: z.array(
-        z.object({
-          name: z.string(),
-          amount: z.string(),
-        })
-      ),
-      steps: z.array(z.string()),
+try {
+  const result = await generateObject({
+    model,
+    schema: z.object({
+      recipe: z.object({
+        name: z.string(),
+        ingredients: z.array(
+          z.object({
+            name: z.string(),
+            amount: z.string(),
+          })
+        ),
+        steps: z.array(z.string()),
+      }),
     }),
-  }),
-  prompt: "Generate a lasagna recipe.",
-});
+    prompt: "Generate a lasagna recipe.",
+  });
 
-console.log(JSON.stringify(result.object.recipe, null, 2));
-console.log();
-console.log("Usage:", result.usage);
-console.log("Finish reason:", result.finishReason);
-
-await model.dispose();
+  console.log(JSON.stringify(result.object.recipe, null, 2));
+  console.log();
+  console.log("Usage:", result.usage);
+  console.log("Finish reason:", result.finishReason);
+} finally {
+  await model.dispose();
+}
