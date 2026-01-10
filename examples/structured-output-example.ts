@@ -58,7 +58,7 @@ async function main() {
       }),
       prompt:
         "Generate a simple recipe for toast with butter. Keep ingredient amounts short like '2 slices' or '1 tbsp'. Include 2 ingredients and 3 short steps.",
-      maxTokens: 800,
+      maxOutputTokens: 800,
     });
 
     if (!recipe) {

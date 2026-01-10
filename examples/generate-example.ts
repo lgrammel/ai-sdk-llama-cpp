@@ -17,7 +17,7 @@ async function main() {
           content: "Explain what a neural network is in 2-3 sentences.",
         },
       ],
-      maxTokens: 150,
+      maxOutputTokens: 150,
     });
 
     console.log(text);
