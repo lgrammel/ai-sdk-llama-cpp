@@ -33,6 +33,9 @@ xcode-select --install
 
 # Install CMake via Homebrew
 brew install cmake
+
+# Optional: Install clang-format for code formatting (development only)
+brew install clang-format
 ```
 
 ## Installation
@@ -312,6 +315,8 @@ npm run build
 - `npm run test:integration` - Run integration tests
 - `npm run test:e2e` - Run end-to-end tests
 - `npm run test:coverage` - Run tests with coverage
+- `npm run format:check` - Check code formatting (requires clang-format)
+- `npm run format:fix` - Fix code formatting (requires clang-format)
 
 ## License
 
