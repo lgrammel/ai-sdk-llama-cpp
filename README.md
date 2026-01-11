@@ -147,6 +147,31 @@ The structured output feature uses GBNF grammar constraints to ensure the model 
 - **String formats**: `date`, `time`, `date-time`, `uuid`
 - **References**: Local `$ref` to `$defs`/`definitions`
 
+### Embedding Example
+
+```typescript
+import { embed, embedMany } from "ai";
+import { llamaCpp } from "ai-sdk-llama-cpp";
+
+const model = llamaCpp.embedding({
+  modelPath: "./models/nomic-embed-text-v1.5.Q4_K_M.gguf",
+});
+
+try {
+  const { embedding } = await embed({
+    model,
+    value: "Hello, world!",
+  });
+
+  const { embeddings } = await embedMany({
+    model,
+    values: ["Hello, world!", "Hello, ▲!"],
+  });
+} finally {
+  model.dispose();
+}
+```
+
 ### Configuration Options
 
 ```typescript

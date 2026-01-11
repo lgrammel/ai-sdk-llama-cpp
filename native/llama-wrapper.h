@@ -31,6 +31,7 @@ struct ContextParams {
     int n_ctx = 2048;      // Context size
     int n_batch = 512;     // Batch size for prompt processing
     int n_threads = 4;     // Number of threads
+    bool embedding = false; // Enable embedding mode with mean pooling
 };
 
 struct GenerationParams {
@@ -48,6 +49,11 @@ struct GenerationResult {
     int prompt_tokens;
     int completion_tokens;
     std::string finish_reason;  // "stop", "length", or "error"
+};
+
+struct EmbeddingResult {
+    std::vector<std::vector<float>> embeddings;  // One embedding vector per input text
+    int total_tokens;
 };
 
 // Token callback for streaming: returns false to stop generation
@@ -78,7 +84,7 @@ public:
     // Get the model path
     const std::string& get_model_path() const { return model_path_; }
 
-    // Create a context for inference
+    // Create a context for inference (or embeddings if params.embedding is true)
     bool create_context(const ContextParams& params);
 
     // Apply chat template to messages and return formatted prompt
@@ -94,6 +100,9 @@ public:
         TokenCallback callback
     );
 
+    // Generate embeddings for multiple texts
+    EmbeddingResult embed(const std::vector<std::string>& texts);
+
 private:
     llama_model* model_ = nullptr;
     llama_context* ctx_ = nullptr;
@@ -103,6 +112,9 @@ private:
 
     // Tokenize a string
     std::vector<int32_t> tokenize(const std::string& text, bool add_bos);
+
+    // Normalize an embedding vector (L2 normalization)
+    static void normalize_embedding(float* embedding, int n_embd);
 
     // Detokenize a single token
     std::string detokenize(int32_t token);

@@ -20,6 +20,12 @@ export interface LoadModelOptions {
    * - Template name: Use a specific built-in template (e.g., "llama3", "chatml", "gemma")
    */
   chatTemplate?: string;
+  /**
+   * Whether to load the model for embedding generation.
+   * When true, creates an embedding context with mean pooling enabled.
+   * Default: false
+   */
+  embedding?: boolean;
 }
 
 export interface ChatMessage {
@@ -45,6 +51,15 @@ export interface GenerateResult {
   finishReason: 'stop' | 'length' | 'error';
 }
 
+export interface EmbedOptions {
+  texts: string[];
+}
+
+export interface EmbedResult {
+  embeddings: Float32Array[];
+  totalTokens: number;
+}
+
 interface NativeBinding {
   loadModel(options: LoadModelOptions, callback: (error: string | null, handle: number | null) => void): void;
   unloadModel(handle: number): boolean;
@@ -56,6 +71,8 @@ interface NativeBinding {
     doneCallback: (error: string | null, result: GenerateResult | null) => void
   ): void;
   isModelLoaded(handle: number): boolean;
+  // Embedding functions
+  embed(handle: number, options: EmbedOptions, callback: (error: string | null, result: EmbedResult | null) => void): void;
 }
 
 export function loadModel(options: LoadModelOptions): Promise<number> {
@@ -115,5 +132,19 @@ export function generateStream(
 
 export function isModelLoaded(handle: number): boolean {
   return binding.isModelLoaded(handle);
+}
+
+export function embed(handle: number, options: EmbedOptions): Promise<EmbedResult> {
+  return new Promise((resolve, reject) => {
+    binding.embed(handle, options, (error, result) => {
+      if (error) {
+        reject(new Error(error));
+      } else if (result) {
+        resolve(result);
+      } else {
+        reject(new Error('Failed to generate embeddings: unknown error'));
+      }
+    });
+  });
 }
 

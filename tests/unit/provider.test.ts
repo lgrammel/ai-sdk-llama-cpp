@@ -94,6 +94,40 @@ describe("llamaCpp", () => {
     });
   });
 
+  describe("EmbeddingModelV3 interface", () => {
+    it('has specificationVersion "v3"', () => {
+      const model = llamaCpp.embedding({
+        modelPath: "/path/to/model.gguf",
+      });
+
+      expect(model.specificationVersion).toBe("v3");
+    });
+
+    it('has provider "llama.cpp"', () => {
+      const model = llamaCpp.embedding({
+        modelPath: "/path/to/model.gguf",
+      });
+
+      expect(model.provider).toBe("llama.cpp");
+    });
+
+    it("has doEmbed method", () => {
+      const model = llamaCpp.embedding({
+        modelPath: "/path/to/model.gguf",
+      });
+
+      expect(typeof model.doEmbed).toBe("function");
+    });
+
+    it("has dispose method", () => {
+      const model = llamaCpp.embedding({
+        modelPath: "/path/to/model.gguf",
+      });
+
+      expect(typeof model.dispose).toBe("function");
+    });
+  });
+
   describe("multiple instances", () => {
     it("creates independent instances", () => {
       const model1 = llamaCpp({
