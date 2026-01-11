@@ -218,7 +218,7 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
 
     const generateOptions: GenerateOptions = {
       messages,
-      maxTokens: options.maxOutputTokens ?? 256,
+      maxTokens: options.maxOutputTokens ?? 2048,
       temperature: options.temperature ?? 0.7,
       topP: options.topP ?? 0.9,
       topK: options.topK ?? 40,
@@ -265,7 +265,7 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
 
     const generateOptions: GenerateOptions = {
       messages,
-      maxTokens: options.maxOutputTokens ?? 256,
+      maxTokens: options.maxOutputTokens ?? 2048,
       temperature: options.temperature ?? 0.7,
       topP: options.topP ?? 0.9,
       topK: options.topK ?? 40,
