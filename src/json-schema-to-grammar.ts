@@ -232,14 +232,23 @@ function generateMinMaxInt(
       const c = minS[0];
 
       if (c > "1") {
-        digitRange(topLevel ? "1" : "0", String.fromCharCode(c.charCodeAt(0) - 1));
+        digitRange(
+          topLevel ? "1" : "0",
+          String.fromCharCode(c.charCodeAt(0) - 1)
+        );
         out.push(" ");
         moreDigits(length, lessDecimals);
         out.push(" | ");
       }
       digitRange(c, c);
       out.push(" (");
-      generateMinMaxInt(parseInt(minS.slice(1)), null, out, lessDecimals, false);
+      generateMinMaxInt(
+        parseInt(minS.slice(1)),
+        null,
+        out,
+        lessDecimals,
+        false
+      );
       out.push(")");
       if (c < "9") {
         out.push(" | ");
@@ -489,10 +498,7 @@ export class SchemaConverter {
   ): string {
     return altSchemas
       .map((altSchema, i) =>
-        this.visit(
-          altSchema,
-          `${name ?? ""}${name ? "-" : "alternative-"}${i}`
-        )
+        this.visit(altSchema, `${name ?? ""}${name ? "-" : "alternative-"}${i}`)
       )
       .join(" | ");
   }
@@ -634,9 +640,14 @@ export class SchemaConverter {
           }
 
           seq[seq.length - 1] = [
-            buildRepetition(subIsLiteral ? `"${sub}"` : sub, minTimes, maxTimes, {
-              itemRuleIsLiteral: subIsLiteral,
-            }),
+            buildRepetition(
+              subIsLiteral ? `"${sub}"` : sub,
+              minTimes,
+              maxTimes,
+              {
+                itemRuleIsLiteral: subIsLiteral,
+              }
+            ),
             false,
           ];
         } else {
@@ -772,7 +783,9 @@ export class SchemaConverter {
     } else if ("enum" in schema) {
       const rule =
         "(" +
-        schema.enum!.map((v: any) => this._generateConstantRule(v)).join(" | ") +
+        schema
+          .enum!.map((v: any) => this._generateConstantRule(v))
+          .join(" | ") +
         ") space";
       return this._addRule(ruleName, rule);
     } else if (
@@ -916,7 +929,9 @@ export class SchemaConverter {
       const maxLen = schema.maxLength;
       return this._addRule(
         ruleName,
-        '"\\\"" ' + buildRepetition(charRuleName, minLen, maxLen) + ' "\\\"" space'
+        '"\\\"" ' +
+          buildRepetition(charRuleName, minLen, maxLen) +
+          ' "\\\"" space'
       );
     } else if (
       schemaType === "integer" &&
@@ -979,15 +994,17 @@ export class SchemaConverter {
     additionalProperties: boolean | JSONSchema7 | undefined | null
   ): string {
     const propOrder = this._propOrder;
-    const sortedProps = properties.map(([k]) => k).sort((a, b) => {
-      const orderA = propOrder[a] ?? Infinity;
-      const orderB = propOrder[b] ?? Infinity;
-      return (
-        orderA - orderB ||
-        properties.findIndex(([k]) => k === a) -
-          properties.findIndex(([k]) => k === b)
-      );
-    });
+    const sortedProps = properties
+      .map(([k]) => k)
+      .sort((a, b) => {
+        const orderA = propOrder[a] ?? Infinity;
+        const orderB = propOrder[b] ?? Infinity;
+        return (
+          orderA - orderB ||
+          properties.findIndex(([k]) => k === a) -
+            properties.findIndex(([k]) => k === b)
+        );
+      });
 
     const propKvRuleNames: Record<string, string> = {};
     for (const [propName, propSchema] of properties) {
@@ -1032,7 +1049,10 @@ export class SchemaConverter {
         rule += ' "," space ( ';
       }
 
-      const getRecursiveRefs = (ks: string[], firstIsOptional: boolean): string => {
+      const getRecursiveRefs = (
+        ks: string[],
+        firstIsOptional: boolean
+      ): string => {
         const [k, ...rest] = ks;
         const kvRuleName = propKvRuleNames[k];
         let res: string;

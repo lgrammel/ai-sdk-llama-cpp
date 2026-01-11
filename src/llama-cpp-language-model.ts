@@ -95,7 +95,9 @@ export function convertUsage(
  * Convert AI SDK messages to simple role/content format for the native layer.
  * The native layer will apply the appropriate chat template.
  */
-export function convertMessages(messages: LanguageModelV3Message[]): ChatMessage[] {
+export function convertMessages(
+  messages: LanguageModelV3Message[]
+): ChatMessage[] {
   const result: ChatMessage[] = [];
 
   for (const message of messages) {
@@ -212,8 +214,13 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
 
     // Convert JSON schema to GBNF grammar if structured output is requested
     let grammar: string | undefined;
-    if (options.responseFormat?.type === "json" && options.responseFormat.schema) {
-      grammar = convertJsonSchemaToGrammar(options.responseFormat.schema as JSONSchema7);
+    if (
+      options.responseFormat?.type === "json" &&
+      options.responseFormat.schema
+    ) {
+      grammar = convertJsonSchemaToGrammar(
+        options.responseFormat.schema as JSONSchema7
+      );
     }
 
     const generateOptions: GenerateOptions = {
@@ -259,8 +266,13 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
 
     // Convert JSON schema to GBNF grammar if structured output is requested
     let grammar: string | undefined;
-    if (options.responseFormat?.type === "json" && options.responseFormat.schema) {
-      grammar = convertJsonSchemaToGrammar(options.responseFormat.schema as JSONSchema7);
+    if (
+      options.responseFormat?.type === "json" &&
+      options.responseFormat.schema
+    ) {
+      grammar = convertJsonSchemaToGrammar(
+        options.responseFormat.schema as JSONSchema7
+      );
     }
 
     const generateOptions: GenerateOptions = {
