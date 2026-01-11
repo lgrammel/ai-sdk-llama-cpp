@@ -620,7 +620,7 @@ describe("convertJsonSchemaToGrammar", () => {
         type: "object",
         properties: {
           "first-name": { type: "string" },
-          "last_name": { type: "string" },
+          last_name: { type: "string" },
         },
       };
       const grammar = convertJsonSchemaToGrammar(schema);

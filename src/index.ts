@@ -12,9 +12,7 @@ export {
   convertFinishReason,
   convertUsage,
 } from "./llama-cpp-language-model.js";
-export {
-  LlamaCppEmbeddingModel,
-} from "./llama-cpp-embedding-model.js";
+export { LlamaCppEmbeddingModel } from "./llama-cpp-embedding-model.js";
 
 // Export JSON schema to grammar converter for advanced use cases
 export {

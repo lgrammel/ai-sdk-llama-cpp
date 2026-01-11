@@ -2,9 +2,7 @@ import {
   LlamaCppLanguageModel,
   type LlamaCppModelConfig,
 } from "./llama-cpp-language-model.js";
-import {
-  LlamaCppEmbeddingModel,
-} from "./llama-cpp-embedding-model.js";
+import { LlamaCppEmbeddingModel } from "./llama-cpp-embedding-model.js";
 
 export interface LlamaCppProviderConfig {
   /**
@@ -34,7 +32,6 @@ export interface LlamaCppProviderConfig {
   debug?: boolean;
 }
 
-
 export interface LlamaCppProvider {
   (config: LlamaCppProviderConfig): LlamaCppLanguageModel;
   languageModel(config: LlamaCppProviderConfig): LlamaCppLanguageModel;
@@ -42,9 +39,7 @@ export interface LlamaCppProvider {
 }
 
 function createLlamaCpp(): LlamaCppProvider {
-  const provider = (
-    config: LlamaCppProviderConfig
-  ): LlamaCppLanguageModel => {
+  const provider = (config: LlamaCppProviderConfig): LlamaCppLanguageModel => {
     const modelConfig: LlamaCppModelConfig = {
       modelPath: config.modelPath,
       contextSize: config.contextSize,
@@ -54,13 +49,13 @@ function createLlamaCpp(): LlamaCppProvider {
     };
 
     return new LlamaCppLanguageModel(modelConfig);
-  }
+  };
 
   provider.languageModel = provider;
 
   provider.embedding = (config: LlamaCppProviderConfig) => {
     return new LlamaCppEmbeddingModel(config);
-  }
+  };
 
   return provider as LlamaCppProvider;
 }
@@ -76,7 +71,7 @@ function createLlamaCpp(): LlamaCppProvider {
  * const model = llamaCpp({
  *   modelPath: './models/llama-3.2-1b.gguf'
  * });
- * 
+ *
  * const embeddingModel = llamaCpp.embedding({
  *   modelPath: './models/nomic-embed-text-v1.5.Q4_K_M.gguf'
  * });
@@ -112,7 +107,6 @@ function createLlamaCpp(): LlamaCppProvider {
  * ```
  */
 export const llamaCpp = createLlamaCpp();
-
 
 /**
  * Default export for convenience.

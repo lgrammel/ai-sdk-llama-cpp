@@ -127,7 +127,9 @@ describe("E2E Test Configuration", () => {
         "   Example: TEST_EMBEDDING_PATH=./models/model.gguf npm run test:e2e\n"
       );
     } else {
-      console.log(`\n✅ Running E2E tests with model: ${TEST_EMBEDDING_PATH}\n`);
+      console.log(
+        `\n✅ Running E2E tests with model: ${TEST_EMBEDDING_PATH}\n`
+      );
     }
     expect(true).toBe(true);
   });
