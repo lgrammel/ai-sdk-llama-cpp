@@ -629,17 +629,46 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
           // Collect the full text for tool call parsing
           let fullText = "";
 
-          // Emit text start
-          controller.enqueue({
-            type: "text-start",
-            id: textId,
-          });
+          // Track whether we've detected this is a tool call (to suppress text deltas)
+          let isToolCallMode = false;
+          let detectionComplete = false;
+          let textStartEmitted = false;
 
           const result = await generateStream(
             handle,
             generateOptions,
             (token) => {
               fullText += token;
+
+              // When tools are provided, detect if output looks like a tool call
+              if (hasTools && options.toolChoice?.type !== "none") {
+                if (!detectionComplete) {
+                  const trimmed = fullText.trimStart();
+                  // Check if it starts with JSON object/array (tool call pattern)
+                  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+                    isToolCallMode = true;
+                    detectionComplete = true;
+                  } else if (trimmed.length > 0) {
+                    // First non-whitespace char is not JSON - it's regular text
+                    detectionComplete = true;
+                  }
+                }
+
+                // If in tool call mode, don't emit text deltas
+                if (isToolCallMode) {
+                  return;
+                }
+              }
+
+              // Emit text start on first actual text delta
+              if (!textStartEmitted) {
+                controller.enqueue({
+                  type: "text-start",
+                  id: textId,
+                });
+                textStartEmitted = true;
+              }
+
               controller.enqueue({
                 type: "text-delta",
                 id: textId,
@@ -648,11 +677,13 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
             }
           );
 
-          // Emit text end
-          controller.enqueue({
-            type: "text-end",
-            id: textId,
-          });
+          // Emit text end if we started text
+          if (textStartEmitted) {
+            controller.enqueue({
+              type: "text-end",
+              id: textId,
+            });
+          }
 
           // Check for tool calls if tools were provided
           let finishReason = convertFinishReason(result.finishReason);
