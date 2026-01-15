@@ -1,6 +1,9 @@
 {
   "name": "ai-sdk-llama-cpp-monorepo",
   "private": true,
+  "devDependencies": {
+    "prettier": "^3.4.2"
+  },
   "scripts": {
     "build": "pnpm -r build",
     "build:ts": "pnpm -r build:ts",
