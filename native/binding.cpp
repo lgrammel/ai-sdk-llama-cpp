@@ -121,35 +121,14 @@ private:
   llama_wrapper::GenerationResult result_;
 };
 
-// Thread-safe function context for streaming
-class StreamContext {
-public:
-  StreamContext(Napi::Env env, Napi::Function callback)
-      : callback_(Napi::Persistent(callback)), env_(env) {}
-
-  Napi::FunctionReference callback_;
-  Napi::Env env_;
-  llama_wrapper::GenerationResult result_;
-};
-
-void StreamCallJS(Napi::Env env, Napi::Function callback, StreamContext *context,
-                  const char *token) {
-  if (env != nullptr && callback != nullptr) {
-    if (token != nullptr) {
-      // Streaming token
-      callback.Call({env.Null(), Napi::String::New(env, "token"), Napi::String::New(env, token)});
-    }
-  }
-}
-
 class StreamGenerateWorker : public Napi::AsyncWorker {
 public:
   StreamGenerateWorker(Napi::Function &callback, int handle,
                        const std::vector<llama_wrapper::ChatMessage> &messages,
                        const llama_wrapper::GenerationParams &params,
-                       Napi::Function &token_callback)
+                       Napi::ThreadSafeFunction tsfn)
       : Napi::AsyncWorker(callback), handle_(handle), messages_(messages), params_(params),
-        token_callback_(Napi::Persistent(token_callback)) {}
+        tsfn_(tsfn) {}
 
   void Execute() override {
     llama_wrapper::LlamaModel *model = nullptr;
@@ -164,21 +143,26 @@ public:
       model = it->second.get();
     }
 
-    // Collect tokens during generation
+    // Stream tokens during generation using thread-safe function
     result_ = model->generate_streaming(messages_, params_, [this](const std::string &token) {
-      std::lock_guard<std::mutex> lock(tokens_mutex_);
-      tokens_.push_back(token);
-      return true;
+      // Create a copy on the heap that will be deleted after the callback
+      std::string* tokenCopy = new std::string(token);
+      // Call JavaScript callback from worker thread via thread-safe function
+      napi_status status = tsfn_.BlockingCall(tokenCopy, [](Napi::Env env, Napi::Function jsCallback, std::string* data) {
+        if (data != nullptr) {
+          jsCallback.Call({Napi::String::New(env, *data)});
+          delete data;
+        }
+      });
+      return status == napi_ok;
     });
   }
 
   void OnOK() override {
     Napi::HandleScope scope(Env());
 
-    // Call token callback for each collected token
-    for (const auto &token : tokens_) {
-      token_callback_.Call({Napi::String::New(Env(), token)});
-    }
+    // Release the thread-safe function
+    tsfn_.Release();
 
     // Final callback with result
     Napi::Object result = Napi::Object::New(Env());
@@ -190,14 +174,22 @@ public:
     Callback().Call({Env().Null(), result});
   }
 
+  void OnError(const Napi::Error &e) override {
+    Napi::HandleScope scope(Env());
+    
+    // Release the thread-safe function
+    tsfn_.Release();
+    
+    // Call the callback with error
+    Callback().Call({Napi::String::New(Env(), e.Message()), Env().Null()});
+  }
+
 private:
   int handle_;
   std::vector<llama_wrapper::ChatMessage> messages_;
   llama_wrapper::GenerationParams params_;
   llama_wrapper::GenerationResult result_;
-  Napi::FunctionReference token_callback_;
-  std::vector<std::string> tokens_;
-  std::mutex tokens_mutex_;
+  Napi::ThreadSafeFunction tsfn_;
 };
 
 class EmbedWorker : public Napi::AsyncWorker {
@@ -413,7 +405,16 @@ Napi::Value GenerateStream(const Napi::CallbackInfo &info) {
     params.grammar = options.Get("grammar").As<Napi::String>().Utf8Value();
   }
 
-  auto worker = new StreamGenerateWorker(done_callback, handle, messages, params, token_callback);
+  // Create thread-safe function for streaming tokens to JavaScript
+  Napi::ThreadSafeFunction tsfn = Napi::ThreadSafeFunction::New(
+      env,
+      token_callback,
+      "TokenCallback",
+      0,  // Unlimited queue size
+      1   // Initial thread count
+  );
+
+  auto worker = new StreamGenerateWorker(done_callback, handle, messages, params, tsfn);
   worker->Queue();
 
   return env.Undefined();
