@@ -2,11 +2,11 @@
 node_modules/
 
 # Build outputs
-dist/
-build/
+packages/*/dist/
+packages/*/build/
 
 # Downloaded dependencies (cloned during postinstall)
-llama.cpp/
+packages/*/llama.cpp/
 
 # IDE
 .vscode/
@@ -22,6 +22,7 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
 # Test models (users should download their own)
 *.gguf

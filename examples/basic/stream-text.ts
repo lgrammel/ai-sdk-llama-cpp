@@ -1,5 +1,5 @@
 import { streamText } from "ai";
-import { llamaCpp } from "../dist/index.js";
+import { llamaCpp } from "ai-sdk-llama-cpp";
 
 const model = llamaCpp({
   modelPath: "./models/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf",

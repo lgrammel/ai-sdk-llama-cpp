@@ -1,4 +1,4 @@
-import { llamaCpp } from "../dist/index.js";
+import { llamaCpp } from "ai-sdk-llama-cpp";
 import { stepCountIs, ModelMessage, streamText, tool } from "ai";
 import * as readline from "node:readline/promises";
 import { z } from "zod";

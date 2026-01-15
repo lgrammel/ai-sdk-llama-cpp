@@ -1,0 +1,81 @@
+{
+  "name": "ai-sdk-llama-cpp",
+  "version": "0.6.0",
+  "description": "A minimal llama.cpp provider for the Vercel AI SDK implementing LanguageModelV3 and EmbeddingModelV3",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "native",
+    "scripts",
+    "CMakeLists.txt"
+  ],
+  "llamaCpp": {
+    "repo": "https://github.com/ggerganov/llama.cpp.git",
+    "commit": "600a36647812a4051e19261026a2186345142e5b"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.cjs",
+    "build:native": "cmake-js compile",
+    "build:native:debug": "cmake-js compile --debug",
+    "build:ts": "tsc",
+    "build": "pnpm run build:native && pnpm run build:ts",
+    "clean": "rm -rf dist build llama.cpp",
+    "prepublishOnly": "pnpm run build:ts",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "vitest run tests/e2e",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "ai",
+    "llama",
+    "llama.cpp",
+    "vercel",
+    "ai-sdk",
+    "language-model",
+    "gguf"
+  ],
+  "author": "Lars Grammel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lgrammel/ai-sdk-llama-cpp.git",
+    "directory": "packages/ai-sdk-llama-cpp"
+  },
+  "bugs": {
+    "url": "https://github.com/lgrammel/ai-sdk-llama-cpp/issues"
+  },
+  "homepage": "https://github.com/lgrammel/ai-sdk-llama-cpp#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@ai-sdk/provider": "^3.0.0",
+    "cmake-js": "^7.3.0",
+    "node-addon-api": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^4.0.16",
+    "ai": "^6.0.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.16",
+    "zod": "^4.3.5"
+  },
+  "binary": {
+    "napi_versions": [
+      8
+    ]
+  }
+}

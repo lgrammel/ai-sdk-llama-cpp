@@ -1,0 +1,21 @@
+{
+  "name": "@examples/basic",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate-text": "tsx generate-text.ts",
+    "generate-text-output": "tsx generate-text-output.ts",
+    "stream-text": "tsx stream-text.ts",
+    "chatbot": "tsx chatbot.ts",
+    "embed-many": "tsx embed-many.ts"
+  },
+  "dependencies": {
+    "ai": "^6.0.3",
+    "ai-sdk-llama-cpp": "workspace:*",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "@types/node": "^20.10.0"
+  }
+}
