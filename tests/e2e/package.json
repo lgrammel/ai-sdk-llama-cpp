@@ -1,0 +1,18 @@
+{
+  "name": "@tests/e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "ai": "^6.0.3",
+    "ai-sdk-llama-cpp": "workspace:*",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "vitest": "^4.0.16"
+  }
+}

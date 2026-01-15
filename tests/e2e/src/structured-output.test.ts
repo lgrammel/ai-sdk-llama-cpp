@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { generateText, streamText, Output } from "ai";
 import { z } from "zod";
-import { llamaCpp, LlamaCppLanguageModel } from "../../src/index.js";
+import { llamaCpp, LlamaCppLanguageModel } from "ai-sdk-llama-cpp";
 
 /**
  * E2E tests for structured output with llama.cpp provider.
@@ -9,7 +9,7 @@ import { llamaCpp, LlamaCppLanguageModel } from "../../src/index.js";
  * These tests require a real GGUF model file. Set the TEST_MODEL_PATH
  * environment variable to run these tests:
  *
- *   TEST_MODEL_PATH=./models/your-model.gguf npm run test:e2e
+ *   TEST_MODEL_PATH=./models/your-model.gguf pnpm test:e2e
  *
  * If TEST_MODEL_PATH is not set, these tests will be skipped.
  */
@@ -44,6 +44,7 @@ describeE2E("E2E Structured Output Tests", () => {
   describe("generateText with Output.object()", () => {
     it(
       "generates a simple object with required fields",
+      { timeout: 120000 },
       async () => {
         const schema = z.object({
           name: z.string(),
@@ -60,12 +61,12 @@ describeE2E("E2E Structured Output Tests", () => {
         expect(output).toBeDefined();
         expect(typeof output!.name).toBe("string");
         expect(typeof output!.age).toBe("number");
-      },
-      { timeout: 120000 }
+      }
     );
 
     it(
       "generates an object with nested structure",
+      { timeout: 120000 },
       async () => {
         const schema = z.object({
           title: z.string(),
@@ -87,12 +88,12 @@ describeE2E("E2E Structured Output Tests", () => {
         expect(typeof output!.title).toBe("string");
         expect(typeof output!.author.name).toBe("string");
         expect(typeof output!.author.email).toBe("string");
-      },
-      { timeout: 120000 }
+      }
     );
 
     it(
       "generates an object with array fields",
+      { timeout: 120000 },
       async () => {
         const schema = z.object({
           colors: z.array(z.string()),
@@ -108,12 +109,12 @@ describeE2E("E2E Structured Output Tests", () => {
         expect(output).toBeDefined();
         expect(Array.isArray(output!.colors)).toBe(true);
         expect(output!.colors.length).toBeGreaterThan(0);
-      },
-      { timeout: 120000 }
+      }
     );
 
     it(
       "generates an object with enum constraint",
+      { timeout: 120000 },
       async () => {
         const schema = z.object({
           status: z.enum(["pending", "active", "completed"]),
@@ -128,12 +129,12 @@ describeE2E("E2E Structured Output Tests", () => {
 
         expect(output).toBeDefined();
         expect(["pending", "active", "completed"]).toContain(output!.status);
-      },
-      { timeout: 120000 }
+      }
     );
 
     it(
       "generates an object with boolean field",
+      { timeout: 120000 },
       async () => {
         const schema = z.object({
           isEnabled: z.boolean(),
@@ -148,12 +149,12 @@ describeE2E("E2E Structured Output Tests", () => {
 
         expect(output).toBeDefined();
         expect(typeof output!.isEnabled).toBe("boolean");
-      },
-      { timeout: 120000 }
+      }
     );
 
     it(
       "generates an object with optional fields",
+      { timeout: 120000 },
       async () => {
         const schema = z.object({
           required_field: z.string(),
@@ -169,74 +170,66 @@ describeE2E("E2E Structured Output Tests", () => {
 
         expect(output).toBeDefined();
         expect(typeof output!.required_field).toBe("string");
-      },
-      { timeout: 120000 }
+      }
     );
 
-    it(
-      "generates a complex recipe object",
-      async () => {
-        const schema = z.object({
-          name: z.string(),
-          ingredients: z.array(
-            z.object({
-              name: z.string(),
-              amount: z.string(),
-            })
-          ),
-          steps: z.array(z.string()),
-        });
+    it("generates a complex recipe object", { timeout: 180000 }, async () => {
+      const schema = z.object({
+        name: z.string(),
+        ingredients: z.array(
+          z.object({
+            name: z.string(),
+            amount: z.string(),
+          })
+        ),
+        steps: z.array(z.string()),
+      });
 
-        const { output } = await generateText({
-          model,
-          output: Output.object({ schema }),
-          prompt:
-            "Generate a simple recipe for toast with butter. Include 2 ingredients and 2 steps.",
-          maxTokens: 300,
-        });
+      const { output } = await generateText({
+        model,
+        output: Output.object({ schema }),
+        prompt:
+          "Generate a simple recipe for toast with butter. Include 2 ingredients and 2 steps.",
+        maxTokens: 300,
+      });
 
-        expect(output).toBeDefined();
-        expect(typeof output!.name).toBe("string");
-        expect(Array.isArray(output!.ingredients)).toBe(true);
-        expect(Array.isArray(output!.steps)).toBe(true);
+      expect(output).toBeDefined();
+      expect(typeof output!.name).toBe("string");
+      expect(Array.isArray(output!.ingredients)).toBe(true);
+      expect(Array.isArray(output!.steps)).toBe(true);
 
-        if (output!.ingredients.length > 0) {
-          expect(typeof output!.ingredients[0].name).toBe("string");
-          expect(typeof output!.ingredients[0].amount).toBe("string");
-        }
-      },
-      { timeout: 180000 }
-    );
+      if (output!.ingredients.length > 0) {
+        expect(typeof output!.ingredients[0].name).toBe("string");
+        expect(typeof output!.ingredients[0].amount).toBe("string");
+      }
+    });
   });
 
   describe("streamText with Output.object()", () => {
-    it(
-      "streams a simple object",
-      async () => {
-        const schema = z.object({
-          message: z.string(),
-        });
+    it("streams a simple object", { timeout: 120000 }, async () => {
+      const schema = z.object({
+        message: z.string(),
+      });
 
-        const { partialOutputStream } = streamText({
-          model,
-          output: Output.object({ schema }),
-          prompt: 'Generate a greeting message saying "Hello World".',
-          maxTokens: 50,
-        });
+      const { partialOutputStream } = streamText({
+        model,
+        output: Output.object({ schema }),
+        prompt: 'Generate a greeting message saying "Hello World".',
+        maxTokens: 50,
+      });
 
-        let lastOutput: z.infer<typeof schema> | undefined;
-        for await (const partialOutput of partialOutputStream) {
-          lastOutput = partialOutput as z.infer<typeof schema>;
-        }
+      let lastOutput: z.infer<typeof schema> | undefined;
+      for await (const partialOutput of partialOutputStream) {
+        lastOutput = partialOutput as z.infer<typeof schema>;
+      }
 
-        expect(lastOutput).toBeDefined();
-        expect(typeof lastOutput!.message).toBe("string");
-      },
-      { timeout: 120000 }
-    );
+      expect(lastOutput).toBeDefined();
+      expect(typeof lastOutput!.message).toBe("string");
+    });
 
     it(
       "provides usage after streaming object",
+      { timeout: 120000 },
       async () => {
         const schema = z.object({
           value: z.number(),
@@ -257,60 +250,51 @@ describeE2E("E2E Structured Output Tests", () => {
         const usage = await result.usage;
         expect(usage.promptTokens).toBeGreaterThan(0);
         expect(usage.completionTokens).toBeGreaterThan(0);
-      },
-      { timeout: 120000 }
+      }
     );
   });
 
   describe("edge cases", () => {
-    it(
-      "handles object with many fields",
-      async () => {
-        const schema = z.object({
-          field1: z.string(),
-          field2: z.string(),
-          field3: z.string(),
-          field4: z.number(),
-          field5: z.boolean(),
-        });
+    it("handles object with many fields", { timeout: 120000 }, async () => {
+      const schema = z.object({
+        field1: z.string(),
+        field2: z.string(),
+        field3: z.string(),
+        field4: z.number(),
+        field5: z.boolean(),
+      });
 
-        const { output } = await generateText({
-          model,
-          output: Output.object({ schema }),
-          prompt:
-            'Generate an object with field1="a", field2="b", field3="c", field4=1, field5=true',
-          maxTokens: 150,
-        });
+      const { output } = await generateText({
+        model,
+        output: Output.object({ schema }),
+        prompt:
+          'Generate an object with field1="a", field2="b", field3="c", field4=1, field5=true',
+        maxTokens: 150,
+      });
 
-        expect(output).toBeDefined();
-        expect(typeof output!.field1).toBe("string");
-        expect(typeof output!.field2).toBe("string");
-        expect(typeof output!.field3).toBe("string");
-        expect(typeof output!.field4).toBe("number");
-        expect(typeof output!.field5).toBe("boolean");
-      },
-      { timeout: 120000 }
-    );
+      expect(output).toBeDefined();
+      expect(typeof output!.field1).toBe("string");
+      expect(typeof output!.field2).toBe("string");
+      expect(typeof output!.field3).toBe("string");
+      expect(typeof output!.field4).toBe("number");
+      expect(typeof output!.field5).toBe("boolean");
+    });
 
-    it(
-      "handles empty array in schema",
-      async () => {
-        const schema = z.object({
-          items: z.array(z.string()),
-        });
+    it("handles empty array in schema", { timeout: 120000 }, async () => {
+      const schema = z.object({
+        items: z.array(z.string()),
+      });
 
-        const { output } = await generateText({
-          model,
-          output: Output.object({ schema }),
-          prompt: "Generate an object with an empty items array.",
-          maxTokens: 50,
-        });
+      const { output } = await generateText({
+        model,
+        output: Output.object({ schema }),
+        prompt: "Generate an object with an empty items array.",
+        maxTokens: 50,
+      });
 
-        expect(output).toBeDefined();
-        expect(Array.isArray(output!.items)).toBe(true);
-      },
-      { timeout: 120000 }
-    );
+      expect(output).toBeDefined();
+      expect(Array.isArray(output!.items)).toBe(true);
+    });
   });
 });
 
@@ -322,7 +306,7 @@ describe("Structured Output Test Configuration", () => {
         "\n📋 Structured output E2E tests skipped: Set TEST_MODEL_PATH to run with a real model"
       );
       console.log(
-        "   Example: TEST_MODEL_PATH=./models/model.gguf npm run test:e2e\n"
+        "   Example: TEST_MODEL_PATH=./models/model.gguf pnpm test:e2e\n"
       );
     } else {
       console.log(

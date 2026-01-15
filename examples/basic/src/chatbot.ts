@@ -1,10 +1,10 @@
-import { llamaCpp } from "../dist/index.js";
+import { llamaCpp } from "ai-sdk-llama-cpp";
 import { stepCountIs, ModelMessage, streamText, tool } from "ai";
 import * as readline from "node:readline/promises";
 import { z } from "zod";
 
 const model = llamaCpp({
-  modelPath: "./models/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf",
+  modelPath: "../../models/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf",
 });
 
 const terminal = readline.createInterface({

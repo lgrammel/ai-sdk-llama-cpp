@@ -284,6 +284,21 @@ This is a minimal implementation with the following limitations:
 - **No tool/function calling**: Tool calls are not supported
 - **No image inputs**: Only text prompts are supported
 
+## Monorepo Structure
+
+This repository is organized as a pnpm monorepo:
+
+```
+├── packages/
+│   └── ai-sdk-llama-cpp/    # Main library package
+├── tests/
+│   └── e2e/                 # End-to-end tests
+├── examples/
+│   └── basic/               # Basic usage examples
+├── pnpm-workspace.yaml
+└── package.json
+```
+
 ## Development
 
 ### Building from Source
@@ -293,30 +308,42 @@ This is a minimal implementation with the following limitations:
 git clone https://github.com/lgrammel/ai-sdk-llama-cpp.git
 cd ai-sdk-llama-cpp
 
-# Initialize submodules
-git submodule update --init --recursive
+# Install pnpm (if not already installed)
+npm install -g pnpm
 
 # Install dependencies
-npm install
+pnpm install
 
 # Build the native addon and TypeScript
-npm run build
+pnpm build
 ```
 
 ### Scripts
 
-- `npm run build` - Build everything (native + TypeScript)
-- `npm run build:native` - Build only the native addon
-- `npm run build:ts` - Build only TypeScript
-- `npm run clean` - Remove build artifacts
-- `npm run test` - Run tests in watch mode
-- `npm run test:run` - Run all tests once
-- `npm run test:unit` - Run unit tests
-- `npm run test:integration` - Run integration tests
-- `npm run test:e2e` - Run end-to-end tests
-- `npm run test:coverage` - Run tests with coverage
-- `npm run format:check` - Check code formatting (requires clang-format)
-- `npm run format:fix` - Fix code formatting (requires clang-format)
+- `pnpm build` - Build everything (native + TypeScript)
+- `pnpm build:native` - Build only the native addon
+- `pnpm build:ts` - Build only TypeScript
+- `pnpm clean` - Remove build artifacts
+- `pnpm test` - Run tests in watch mode
+- `pnpm test:run` - Run all tests once
+- `pnpm test:unit` - Run unit tests
+- `pnpm test:integration` - Run integration tests
+- `pnpm test:e2e` - Run end-to-end tests
+- `pnpm test:coverage` - Run tests with coverage
+- `pnpm format:check` - Check code formatting (requires clang-format)
+- `pnpm format:fix` - Fix code formatting (requires clang-format)
+
+### Running Examples
+
+```bash
+# Run examples from the root
+pnpm --filter @examples/basic generate-text
+pnpm --filter @examples/basic stream-text
+
+# Or from the examples/basic directory
+cd examples/basic
+pnpm generate-text
+```
 
 ## License
 

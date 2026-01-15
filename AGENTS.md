@@ -8,20 +8,22 @@ This file provides guidance for AI coding agents (Cursor, Copilot, Claude Code) 
 
 **Platform Support**: macOS only (Apple Silicon or Intel)
 
+**Monorepo Structure**: This project uses pnpm workspaces with packages in `packages/` and examples in `examples/`.
+
 ## Quick Reference
 
 | Task | Command |
 |------|---------|
-| Install dependencies | `npm install` |
-| Build everything | `npm run build` |
-| Build TypeScript only | `npm run build:ts` |
-| Build native only | `npm run build:native` |
-| Run all tests once | `npm run test:run` |
-| Run unit tests | `npm run test:unit` |
-| Run integration tests | `npm run test:integration` |
-| Run E2E tests | `TEST_MODEL_PATH=./models/model.gguf npm run test:e2e` |
-| Run example | `npx tsx examples/generate-example.ts` |
-| Clean build artifacts | `npm run clean` |
+| Install dependencies | `pnpm install` |
+| Build everything | `pnpm build` |
+| Build TypeScript only | `pnpm build:ts` |
+| Build native only | `pnpm build:native` |
+| Run all tests once | `pnpm test:run` |
+| Run unit tests | `pnpm test:unit` |
+| Run integration tests | `pnpm test:integration` |
+| Run E2E tests | `TEST_MODEL_PATH=./models/model.gguf pnpm test:e2e` |
+| Run example | `pnpm --filter @examples/basic generate-text` |
+| Clean build artifacts | `pnpm clean` |
 
 ## Setup & Installation
 
@@ -29,6 +31,7 @@ This file provides guidance for AI coding agents (Cursor, Copilot, Claude Code) 
 
 - **macOS** (Apple Silicon or Intel) - required
 - **Node.js** >= 18.0.0
+- **pnpm** >= 9.0.0
 - **CMake** >= 3.15
 - **Xcode Command Line Tools**
 
@@ -38,6 +41,9 @@ xcode-select --install
 
 # Install CMake via Homebrew (if not already installed)
 brew install cmake
+
+# Install pnpm (if not already installed)
+npm install -g pnpm
 ```
 
 ### Installation Steps
@@ -47,17 +53,14 @@ brew install cmake
 git clone https://github.com/lgrammel/ai-sdk-llama-cpp.git
 cd ai-sdk-llama-cpp
 
-# Initialize submodules (llama.cpp)
-git submodule update --init --recursive
-
 # Install dependencies (this also builds the native addon)
-npm install
+pnpm install
 
 # Build TypeScript
-npm run build:ts
+pnpm build:ts
 ```
 
-The `npm install` step automatically:
+The `pnpm install` step automatically:
 1. Detects macOS and verifies platform compatibility
 2. Compiles llama.cpp as a static library with Metal support
 3. Builds the native Node.js addon
@@ -65,51 +68,64 @@ The `npm install` step automatically:
 ## Project Structure
 
 ```
-├── src/                    # TypeScript source code
-│   ├── index.ts            # Public exports
-│   ├── llama-cpp-provider.ts    # Provider factory function
-│   ├── llama-cpp-language-model.ts  # LanguageModelV3 implementation
-│   ├── native-binding.ts   # Native module bindings
-│   └── json-schema-to-grammar.ts   # JSON schema to GBNF grammar converter
-├── native/                 # C++ native bindings
-│   ├── binding.cpp         # N-API binding layer
-│   ├── llama-wrapper.cpp   # llama.cpp wrapper implementation
-│   └── llama-wrapper.h     # llama.cpp wrapper header
-├── examples/               # Example usage files
-├── tests/                  # Test suites
-│   ├── unit/              # Unit tests (no model required)
-│   ├── integration/       # Integration tests (mocked native bindings)
-│   └── e2e/               # End-to-end tests (requires real model)
-├── dist/                   # Compiled TypeScript output (generated)
-└── build/                  # Native addon build output (generated)
+├── packages/
+│   └── ai-sdk-llama-cpp/       # Main library package
+│       ├── src/                # TypeScript source code
+│       │   ├── index.ts        # Public exports
+│       │   ├── llama-cpp-provider.ts    # Provider factory function
+│       │   ├── llama-cpp-language-model.ts  # LanguageModelV3 implementation
+│       │   ├── native-binding.ts   # Native module bindings
+│       │   └── json-schema-to-grammar.ts   # JSON schema to GBNF grammar converter
+│       ├── native/             # C++ native bindings
+│       │   ├── binding.cpp     # N-API binding layer
+│       │   ├── llama-wrapper.cpp   # llama.cpp wrapper implementation
+│       │   └── llama-wrapper.h # llama.cpp wrapper header
+│       ├── tests/              # Unit and integration tests
+│       │   ├── unit/           # Unit tests (no model required)
+│       │   └── integration/    # Integration tests (mocked native bindings)
+│       ├── dist/               # Compiled TypeScript output (generated)
+│       └── build/              # Native addon build output (generated)
+├── tests/
+│   └── e2e/                    # End-to-end tests (requires real model)
+│       └── src/                # E2E test files
+├── examples/
+│   └── basic/                  # Basic usage examples
+│       └── src/                # Example source files
+│           ├── generate-text.ts
+│           ├── stream-text.ts
+│           ├── generate-text-output.ts
+│           ├── chatbot.ts
+│           └── embed-many.ts
+├── pnpm-workspace.yaml         # Workspace configuration
+└── package.json                # Root package.json with workspace scripts
 ```
 
 ## Testing
 
 ### Test Organization
 
-- **Unit tests** (`tests/unit/`): Test pure functions and class instantiation. No model or native bindings required.
-- **Integration tests** (`tests/integration/`): Test the language model class with mocked native bindings.
-- **E2E tests** (`tests/e2e/`): Test actual inference with a real GGUF model file.
+- **Unit tests** (`packages/ai-sdk-llama-cpp/tests/unit/`): Test pure functions and class instantiation. No model or native bindings required.
+- **Integration tests** (`packages/ai-sdk-llama-cpp/tests/integration/`): Test the language model class with mocked native bindings.
+- **E2E tests** (`tests/e2e/`): Test actual inference with a real GGUF model file. This is a separate workspace package (`@tests/e2e`).
 
 ### Running Tests
 
 ```bash
 # Run all tests once
-npm run test:run
+pnpm test:run
 
 # Run tests in watch mode (for development)
-npm run test
+pnpm test
 
 # Run specific test categories
-npm run test:unit
-npm run test:integration
+pnpm test:unit
+pnpm test:integration
 
 # Run E2E tests (requires a GGUF model)
-TEST_MODEL_PATH=./models/your-model.gguf npm run test:e2e
+TEST_MODEL_PATH=./models/your-model.gguf pnpm test:e2e
 
 # Run tests with coverage
-npm run test:coverage
+pnpm test:coverage
 ```
 
 ### E2E Test Requirements
@@ -122,30 +138,34 @@ mkdir -p models
 wget -P models/ https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf
 
 # Run E2E tests
-TEST_MODEL_PATH=./models/Llama-3.2-1B-Instruct-Q4_K_M.gguf npm run test:e2e
+TEST_MODEL_PATH=./models/Llama-3.2-1B-Instruct-Q4_K_M.gguf pnpm test:e2e
 ```
 
 ### Writing Tests
 
 - Use Vitest (`describe`, `it`, `expect`)
-- Tests are in `tests/**/*.test.ts`
+- Unit/integration tests are in `packages/ai-sdk-llama-cpp/tests/**/*.test.ts`
+- E2E tests are in `tests/e2e/src/**/*.test.ts`
 - Test timeout is 120 seconds (configured in `vitest.config.ts`)
-- Use `describeE2E` helper from `tests/setup.ts` for conditional E2E tests
+- E2E tests use a `describeE2E` pattern that skips tests when `TEST_MODEL_PATH` is not set
 
 ## Examples
 
 ### Running Examples
 
-Examples require the TypeScript to be built first:
+Examples are in the `examples/basic` workspace package:
 
 ```bash
-# Build TypeScript
-npm run build:ts
+# Run examples using pnpm workspace filter
+pnpm --filter @examples/basic generate-text
+pnpm --filter @examples/basic stream-text
+pnpm --filter @examples/basic generate-text-output
+pnpm --filter @examples/basic chatbot
+pnpm --filter @examples/basic embed-many
 
-# Run an example
-npx tsx examples/generate-example.ts
-npx tsx examples/stream-example.ts
-npx tsx examples/structured-output-example.ts
+# Or run directly from the examples/basic directory
+cd examples/basic
+pnpm generate-text
 ```
 
 ### Example Structure
@@ -154,7 +174,7 @@ Examples follow this pattern:
 
 ```typescript
 import { generateText } from "ai";
-import { llamaCpp } from "../dist/index.js";
+import { llamaCpp } from "ai-sdk-llama-cpp";
 
 // Create model instance with config
 const model = llamaCpp({ 
@@ -178,18 +198,19 @@ try {
 
 ### Creating New Examples
 
-1. Create a new file in `examples/` directory
-2. Import from `"../dist/index.js"` (not `"../src/index.js"`)
+1. Create a new file in `examples/basic/src/` directory
+2. Import from `"ai-sdk-llama-cpp"` (workspace dependency)
 3. Use `try/finally` to ensure `model.dispose()` is called
 4. Update the model path to your local GGUF model
-5. Run with `npx tsx examples/your-example.ts`
+5. Add a script to `examples/basic/package.json` (e.g., `"my-example": "tsx src/my-example.ts"`)
+6. Run with `pnpm --filter @examples/basic your-script-name`
 
 Example template:
 
 ```typescript
 import { generateText, streamText, Output } from "ai";
 import { z } from "zod";
-import { llamaCpp } from "../dist/index.js";
+import { llamaCpp } from "ai-sdk-llama-cpp";
 
 const model = llamaCpp({ 
   modelPath: "./models/your-model.gguf",
@@ -253,24 +274,24 @@ Works with standard AI SDK functions:
 
 ### Adding a New Feature
 
-1. Implement in appropriate `src/` file
+1. Implement in appropriate `packages/ai-sdk-llama-cpp/src/` file
 2. Export from `src/index.ts` if public API
-3. Add unit tests in `tests/unit/`
-4. Add integration tests in `tests/integration/`
-5. Run `npm run test:run` to verify
-6. Build with `npm run build:ts`
+3. Add unit tests in `packages/ai-sdk-llama-cpp/tests/unit/`
+4. Add integration tests in `packages/ai-sdk-llama-cpp/tests/integration/`
+5. Run `pnpm test:run` to verify
+6. Build with `pnpm build:ts`
 
 ### Modifying Native Bindings
 
-1. Edit files in `native/`
-2. Rebuild with `npm run build:native`
-3. Test with `npm run test:run`
+1. Edit files in `packages/ai-sdk-llama-cpp/native/`
+2. Rebuild with `pnpm build:native`
+3. Test with `pnpm test:run`
 
 ### Debugging
 
 - Enable verbose llama.cpp output: `llamaCpp({ modelPath, debug: true })`
-- Run specific test: `npx vitest run tests/unit/provider.test.ts`
-- Debug build: `npm run build:native:debug`
+- Run specific test: `pnpm --filter ai-sdk-llama-cpp exec vitest run tests/unit/provider.test.ts`
+- Debug build: `pnpm --filter ai-sdk-llama-cpp build:native:debug`
 
 ## Dependencies
 
