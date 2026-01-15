@@ -633,6 +633,8 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
           let isToolCallMode = false;
           let detectionComplete = false;
           let textStartEmitted = false;
+          // Buffer tokens during detection phase when tools are present
+          let tokenBuffer: string[] = [];
 
           const result = await generateStream(
             handle,
@@ -643,15 +645,39 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
               // When tools are provided, detect if output looks like a tool call
               if (hasTools && options.toolChoice?.type !== "none") {
                 if (!detectionComplete) {
+                  // Buffer tokens during detection phase
+                  tokenBuffer.push(token);
+
                   const trimmed = fullText.trimStart();
                   // Check if it starts with JSON object/array (tool call pattern)
                   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
                     isToolCallMode = true;
                     detectionComplete = true;
+                    // Don't flush buffer - suppress all tokens for tool calls
+                    return;
                   } else if (trimmed.length > 0) {
                     // First non-whitespace char is not JSON - it's regular text
                     detectionComplete = true;
+                    // Flush buffered tokens as text deltas
+                    if (!textStartEmitted) {
+                      controller.enqueue({
+                        type: "text-start",
+                        id: textId,
+                      });
+                      textStartEmitted = true;
+                    }
+                    for (const bufferedToken of tokenBuffer) {
+                      controller.enqueue({
+                        type: "text-delta",
+                        id: textId,
+                        delta: bufferedToken,
+                      });
+                    }
+                    tokenBuffer = [];
+                    return;
                   }
+                  // Still in detection phase (only whitespace so far)
+                  return;
                 }
 
                 // If in tool call mode, don't emit text deltas
