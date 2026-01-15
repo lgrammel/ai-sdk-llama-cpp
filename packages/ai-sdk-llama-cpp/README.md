@@ -14,7 +14,7 @@ This package loads llama.cpp directly into Node.js memory via native C++ binding
 - **GPU Acceleration**: Automatic Metal support on macOS
 - **Streaming & Non-streaming**: Full support for both `generateText` and `streamText`
 - **Structured Output**: Generate JSON objects with schema validation using `generateObject`
-- **Tool/Function Calling**: Support for AI SDK tools with GBNF grammar constraints
+- **Tool/Function Calling**: Support for AI SDK tools with automatic tool call detection
 - **Chat Templates**: Automatic or configurable chat template formatting (llama3, chatml, gemma, etc.)
 - **ESM Only**: Modern ECMAScript modules, no CommonJS
 - **GGUF Support**: Load any GGUF-format model
@@ -153,15 +153,15 @@ The structured output feature uses GBNF grammar constraints to ensure the model 
 
 ### Tool Calling Example
 
-Use AI SDK tools with local models. The model output is constrained using GBNF grammar to ensure valid tool call JSON:
+Use AI SDK tools with local models. The model decides when to call tools based on the conversation context:
 
 ```typescript
-import { generateText, tool } from "ai";
+import { generateText, stepCountIs, tool } from "ai";
 import { z } from "zod";
 import { llamaCpp } from "ai-sdk-llama-cpp";
 
 const model = llamaCpp({
-  modelPath: "./models/llama-3.2-1b-instruct.Q4_K_M.gguf",
+  modelPath: "./models/your-model.gguf",
 });
 
 try {
@@ -169,18 +169,18 @@ try {
     model,
     prompt: "What's the weather in Tokyo?",
     tools: {
-      getWeather: tool({
-        description: "Get the current weather for a city",
+      weather: tool({
+        description: "Get the current weather for a location",
         parameters: z.object({
-          city: z.string().describe("The city name"),
+          location: z.string().describe("The location to get weather for"),
         }),
-        execute: async ({ city }) => {
-          // Your weather API call here
-          return { temperature: 22, condition: "sunny" };
-        },
+        execute: async ({ location }) => ({
+          location,
+          temperature: 72,
+        }),
       }),
     },
-    maxSteps: 2, // Allow tool call and follow-up response
+    stopWhen: stepCountIs(3), // Limit steps to prevent infinite loops
   });
 
   console.log(result.text);
@@ -189,7 +189,9 @@ try {
 }
 ```
 
-> **Note**: Tool calling quality depends on the model. Models fine-tuned for function calling (e.g., Llama 3.1+, Hermes, Functionary) work best.
+Tool calling also works with `streamText`. When tools are provided, the provider automatically detects tool call JSON output and emits proper `tool-call` events instead of streaming raw JSON as text.
+
+> **Note**: Tool calling quality depends heavily on the model. Models fine-tuned for function calling (e.g., Llama 3.1+, Hermes 2/3, Functionary, Qwen 2.5) work best. Generic models may produce inconsistent results.
 
 ### Embedding Example
 
@@ -380,6 +382,7 @@ pnpm build
 pnpm --filter @examples/basic generate-text
 pnpm --filter @examples/basic stream-text
 pnpm --filter @examples/basic generate-text-tool-call
+pnpm --filter @examples/basic stream-text-tool-call
 
 # Or from the examples/basic directory
 cd examples/basic
