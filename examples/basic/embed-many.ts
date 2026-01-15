@@ -2,7 +2,7 @@ import { embedMany } from "ai";
 import { llamaCpp } from "ai-sdk-llama-cpp";
 
 const model = llamaCpp.embedding({
-  modelPath: "./models/gemma-3-12b-it-Q3_K_M.gguf",
+  modelPath: "../../models/gemma-3-12b-it-Q3_K_M.gguf",
 });
 
 try {

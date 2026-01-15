@@ -1,7 +1,9 @@
 import { generateText } from "ai";
 import { llamaCpp } from "ai-sdk-llama-cpp";
 
-const model = llamaCpp({ modelPath: "./models/gemma-3-12b-it-Q3_K_M.gguf" });
+const model = llamaCpp({
+  modelPath: "../../models/gemma-3-12b-it-Q3_K_M.gguf",
+});
 
 try {
   const result = await generateText({
