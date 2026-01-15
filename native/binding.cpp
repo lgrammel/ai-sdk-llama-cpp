@@ -125,8 +125,7 @@ class StreamGenerateWorker : public Napi::AsyncWorker {
 public:
   StreamGenerateWorker(Napi::Function &callback, int handle,
                        const std::vector<llama_wrapper::ChatMessage> &messages,
-                       const llama_wrapper::GenerationParams &params,
-                       Napi::ThreadSafeFunction tsfn)
+                       const llama_wrapper::GenerationParams &params, Napi::ThreadSafeFunction tsfn)
       : Napi::AsyncWorker(callback), handle_(handle), messages_(messages), params_(params),
         tsfn_(tsfn) {}
 
@@ -146,14 +145,15 @@ public:
     // Stream tokens during generation using thread-safe function
     result_ = model->generate_streaming(messages_, params_, [this](const std::string &token) {
       // Create a copy on the heap that will be deleted after the callback
-      std::string* tokenCopy = new std::string(token);
+      std::string *tokenCopy = new std::string(token);
       // Call JavaScript callback from worker thread via thread-safe function
-      napi_status status = tsfn_.BlockingCall(tokenCopy, [](Napi::Env env, Napi::Function jsCallback, std::string* data) {
-        if (data != nullptr) {
-          jsCallback.Call({Napi::String::New(env, *data)});
-          delete data;
-        }
-      });
+      napi_status status = tsfn_.BlockingCall(
+          tokenCopy, [](Napi::Env env, Napi::Function jsCallback, std::string *data) {
+            if (data != nullptr) {
+              jsCallback.Call({Napi::String::New(env, *data)});
+              delete data;
+            }
+          });
       return status == napi_ok;
     });
   }
@@ -176,10 +176,10 @@ public:
 
   void OnError(const Napi::Error &e) override {
     Napi::HandleScope scope(Env());
-    
+
     // Release the thread-safe function
     tsfn_.Release();
-    
+
     // Call the callback with error
     Callback().Call({Napi::String::New(Env(), e.Message()), Env().Null()});
   }
@@ -406,13 +406,11 @@ Napi::Value GenerateStream(const Napi::CallbackInfo &info) {
   }
 
   // Create thread-safe function for streaming tokens to JavaScript
-  Napi::ThreadSafeFunction tsfn = Napi::ThreadSafeFunction::New(
-      env,
-      token_callback,
-      "TokenCallback",
-      0,  // Unlimited queue size
-      1   // Initial thread count
-  );
+  Napi::ThreadSafeFunction tsfn =
+      Napi::ThreadSafeFunction::New(env, token_callback, "TokenCallback",
+                                    0, // Unlimited queue size
+                                    1  // Initial thread count
+      );
 
   auto worker = new StreamGenerateWorker(done_callback, handle, messages, params, tsfn);
   worker->Queue();
