@@ -180,40 +180,73 @@ export function generateToolCallGrammar(
 
 /**
  * Parse the model output to extract tool calls.
+ * Supports multiple formats:
+ * - Single tool call: {"name": "...", "arguments": {...}}
+ * - Array of tool calls: [{"name": "...", "arguments": {...}}, ...]
+ * - Legacy format with tool_calls wrapper: {"tool_calls": [...]}
  * Returns null if the output is not a valid tool call JSON.
  */
 export function parseToolCalls(text: string): ParsedToolCall[] | null {
   try {
-    // Try to parse as JSON
     const trimmed = text.trim();
-    if (!trimmed.startsWith("{")) {
+
+    // Must start with { or [ to be JSON
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
       return null;
     }
 
     const parsed = JSON.parse(trimmed);
-
-    // Check if it has the tool_calls structure
-    if (!parsed.tool_calls || !Array.isArray(parsed.tool_calls)) {
-      return null;
-    }
-
     const toolCalls: ParsedToolCall[] = [];
 
-    for (const call of parsed.tool_calls) {
-      if (
-        typeof call.id === "string" &&
-        typeof call.name === "string" &&
-        typeof call.arguments === "object"
-      ) {
-        toolCalls.push({
-          id: call.id,
-          name: call.name,
-          arguments: call.arguments,
-        });
+    // Handle array format: [{"name": "...", "arguments": {...}}, ...]
+    if (Array.isArray(parsed)) {
+      for (const call of parsed) {
+        if (
+          typeof call.name === "string" &&
+          typeof call.arguments === "object"
+        ) {
+          toolCalls.push({
+            id: call.id || generateToolCallId(),
+            name: call.name,
+            arguments: call.arguments,
+          });
+        }
       }
+      return toolCalls.length > 0 ? toolCalls : null;
     }
 
-    return toolCalls.length > 0 ? toolCalls : null;
+    // Handle single object format: {"name": "...", "arguments": {...}}
+    if (
+      typeof parsed.name === "string" &&
+      typeof parsed.arguments === "object"
+    ) {
+      return [
+        {
+          id: parsed.id || generateToolCallId(),
+          name: parsed.name,
+          arguments: parsed.arguments,
+        },
+      ];
+    }
+
+    // Handle legacy tool_calls wrapper format: {"tool_calls": [...]}
+    if (parsed.tool_calls && Array.isArray(parsed.tool_calls)) {
+      for (const call of parsed.tool_calls) {
+        if (
+          typeof call.name === "string" &&
+          typeof call.arguments === "object"
+        ) {
+          toolCalls.push({
+            id: call.id || generateToolCallId(),
+            name: call.name,
+            arguments: call.arguments,
+          });
+        }
+      }
+      return toolCalls.length > 0 ? toolCalls : null;
+    }
+
+    return null;
   } catch {
     return null;
   }
@@ -243,15 +276,17 @@ export function buildToolSystemPrompt(
 
 ${toolDescriptions}
 
-When you need to use a tool, respond with a JSON object in this exact format:
-{"tool_calls":[{"id":"call_<unique_id>","name":"<tool_name>","arguments":{<tool_arguments>}}]}
+When you need to use a tool, respond ONLY with a JSON object in this exact format (no other text):
+{"name": "<tool_name>", "arguments": {<tool_arguments>}}
 
-Important:
-- The "id" should be a unique identifier starting with "call_"
+For multiple tool calls, use an array:
+[{"name": "<tool_name>", "arguments": {...}}, ...]
+
+Rules:
 - The "name" must exactly match one of the available tool names
-- The "arguments" must match the tool's parameter schema
-- Only respond with the JSON when you want to call a tool
-- You can call multiple tools by adding more objects to the tool_calls array`;
+- The "arguments" must be a valid JSON object matching the tool's parameter schema
+- Output ONLY the JSON, no explanation or other text
+- If you don't need to use a tool, respond normally with text`;
 }
 
 /**
@@ -457,11 +492,13 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
 
     const messages = convertMessages(
       options.prompt,
-      hasTools ? functionTools : undefined
+      hasTools && options.toolChoice?.type !== "none"
+        ? functionTools
+        : undefined
     );
 
     // Convert JSON schema to GBNF grammar if structured output is requested
-    // or generate tool call grammar if tools are provided
+    // Note: Tool calls do NOT use grammar - the model decides whether to call tools
     let grammar: string | undefined;
     if (
       options.responseFormat?.type === "json" &&
@@ -470,9 +507,6 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
       grammar = convertJsonSchemaToGrammar(
         options.responseFormat.schema as JSONSchema7
       );
-    } else if (hasTools && options.toolChoice?.type !== "none") {
-      // Generate grammar for tool calls
-      grammar = generateToolCallGrammar(functionTools);
     }
 
     const generateOptions: GenerateOptions = {
@@ -554,11 +588,13 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
 
     const messages = convertMessages(
       options.prompt,
-      hasTools ? functionTools : undefined
+      hasTools && options.toolChoice?.type !== "none"
+        ? functionTools
+        : undefined
     );
 
     // Convert JSON schema to GBNF grammar if structured output is requested
-    // or generate tool call grammar if tools are provided
+    // Note: Tool calls do NOT use grammar - the model decides whether to call tools
     let grammar: string | undefined;
     if (
       options.responseFormat?.type === "json" &&
@@ -567,9 +603,6 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
       grammar = convertJsonSchemaToGrammar(
         options.responseFormat.schema as JSONSchema7
       );
-    } else if (hasTools && options.toolChoice?.type !== "none") {
-      // Generate grammar for tool calls
-      grammar = generateToolCallGrammar(functionTools);
     }
 
     const generateOptions: GenerateOptions = {

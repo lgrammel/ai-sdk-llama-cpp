@@ -268,8 +268,8 @@ describe("Tool Calling", () => {
 
       expect(prompt).toContain("get_weather");
       expect(prompt).toContain("Get current weather for a city");
-      expect(prompt).toContain("tool_calls");
-      expect(prompt).toContain("arguments");
+      expect(prompt).toContain('"name"');
+      expect(prompt).toContain('"arguments"');
     });
 
     it("builds system prompt with multiple tools", () => {
@@ -338,7 +338,10 @@ describe("Tool Calling", () => {
   describe("convertMessages with tools", () => {
     it("adds tool system prompt when tools are provided", () => {
       const messages: LanguageModelV3Message[] = [
-        { role: "user", content: [{ type: "text", text: "What's the weather?" }] },
+        {
+          role: "user",
+          content: [{ type: "text", text: "What's the weather?" }],
+        },
       ];
 
       const tools: LanguageModelV3FunctionTool[] = [
@@ -355,7 +358,7 @@ describe("Tool Calling", () => {
       // Should have system message first with tool instructions
       expect(result[0].role).toBe("system");
       expect(result[0].content).toContain("get_weather");
-      expect(result[0].content).toContain("tool_calls");
+      expect(result[0].content).toContain('"name"');
     });
 
     it("does not add tool prompt when no tools provided", () => {
