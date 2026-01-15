@@ -80,19 +80,22 @@ The `pnpm install` step automatically:
 │       │   ├── binding.cpp     # N-API binding layer
 │       │   ├── llama-wrapper.cpp   # llama.cpp wrapper implementation
 │       │   └── llama-wrapper.h # llama.cpp wrapper header
-│       ├── tests/              # Test suites
+│       ├── tests/              # Unit and integration tests
 │       │   ├── unit/           # Unit tests (no model required)
-│       │   ├── integration/    # Integration tests (mocked native bindings)
-│       │   └── e2e/            # End-to-end tests (requires real model)
+│       │   └── integration/    # Integration tests (mocked native bindings)
 │       ├── dist/               # Compiled TypeScript output (generated)
 │       └── build/              # Native addon build output (generated)
+├── tests/
+│   └── e2e/                    # End-to-end tests (requires real model)
+│       └── src/                # E2E test files
 ├── examples/
 │   └── basic/                  # Basic usage examples
-│       ├── generate-text.ts
-│       ├── stream-text.ts
-│       ├── generate-text-output.ts
-│       ├── chatbot.ts
-│       └── embed-many.ts
+│       └── src/                # Example source files
+│           ├── generate-text.ts
+│           ├── stream-text.ts
+│           ├── generate-text-output.ts
+│           ├── chatbot.ts
+│           └── embed-many.ts
 ├── pnpm-workspace.yaml         # Workspace configuration
 └── package.json                # Root package.json with workspace scripts
 ```
@@ -103,7 +106,7 @@ The `pnpm install` step automatically:
 
 - **Unit tests** (`packages/ai-sdk-llama-cpp/tests/unit/`): Test pure functions and class instantiation. No model or native bindings required.
 - **Integration tests** (`packages/ai-sdk-llama-cpp/tests/integration/`): Test the language model class with mocked native bindings.
-- **E2E tests** (`packages/ai-sdk-llama-cpp/tests/e2e/`): Test actual inference with a real GGUF model file.
+- **E2E tests** (`tests/e2e/`): Test actual inference with a real GGUF model file. This is a separate workspace package (`@tests/e2e`).
 
 ### Running Tests
 
@@ -141,9 +144,10 @@ TEST_MODEL_PATH=./models/Llama-3.2-1B-Instruct-Q4_K_M.gguf pnpm test:e2e
 ### Writing Tests
 
 - Use Vitest (`describe`, `it`, `expect`)
-- Tests are in `packages/ai-sdk-llama-cpp/tests/**/*.test.ts`
+- Unit/integration tests are in `packages/ai-sdk-llama-cpp/tests/**/*.test.ts`
+- E2E tests are in `tests/e2e/src/**/*.test.ts`
 - Test timeout is 120 seconds (configured in `vitest.config.ts`)
-- Use `describeE2E` helper from `tests/setup.ts` for conditional E2E tests
+- E2E tests use a `describeE2E` pattern that skips tests when `TEST_MODEL_PATH` is not set
 
 ## Examples
 
@@ -194,11 +198,11 @@ try {
 
 ### Creating New Examples
 
-1. Create a new file in `examples/basic/` directory
+1. Create a new file in `examples/basic/src/` directory
 2. Import from `"ai-sdk-llama-cpp"` (workspace dependency)
 3. Use `try/finally` to ensure `model.dispose()` is called
 4. Update the model path to your local GGUF model
-5. Add a script to `examples/basic/package.json`
+5. Add a script to `examples/basic/package.json` (e.g., `"my-example": "tsx src/my-example.ts"`)
 6. Run with `pnpm --filter @examples/basic your-script-name`
 
 Example template:

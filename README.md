@@ -291,6 +291,8 @@ This repository is organized as a pnpm monorepo:
 ```
 ├── packages/
 │   └── ai-sdk-llama-cpp/    # Main library package
+├── tests/
+│   └── e2e/                 # End-to-end tests
 ├── examples/
 │   └── basic/               # Basic usage examples
 ├── pnpm-workspace.yaml
