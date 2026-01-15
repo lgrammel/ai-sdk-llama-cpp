@@ -301,5 +301,35 @@ Works with standard AI SDK functions:
 ## Limitations
 
 - macOS only (Windows/Linux not supported)
-- No tool/function calling support
 - No image input support (text only)
+
+## Tool/Function Calling
+
+Tool calling is supported via GBNF grammar constraints. The model output is constrained to produce valid JSON tool call structures. This works best with models fine-tuned for function calling (e.g., Llama 3.1+, Hermes, Functionary, Qwen 2.5).
+
+Example usage:
+```typescript
+import { generateText, tool } from "ai";
+import { z } from "zod";
+import { llamaCpp } from "ai-sdk-llama-cpp";
+
+const model = llamaCpp({ modelPath: "./models/model.gguf" });
+
+const result = await generateText({
+  model,
+  prompt: "What's the weather in Tokyo?",
+  tools: {
+    getWeather: tool({
+      description: "Get weather for a city",
+      parameters: z.object({ city: z.string() }),
+      execute: async ({ city }) => ({ temperature: 22, condition: "sunny" }),
+    }),
+  },
+  maxSteps: 2,
+});
+```
+
+Run the tool calling example:
+```bash
+pnpm --filter @examples/basic generate-text-tool-call
+```

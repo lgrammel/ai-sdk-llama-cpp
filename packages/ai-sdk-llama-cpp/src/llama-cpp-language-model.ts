@@ -3,6 +3,7 @@ import type {
   LanguageModelV3CallOptions,
   LanguageModelV3Content,
   LanguageModelV3FinishReason,
+  LanguageModelV3FunctionTool,
   LanguageModelV3GenerateResult,
   LanguageModelV3Message,
   LanguageModelV3StreamPart,
@@ -23,7 +24,10 @@ import {
 } from "./native-binding.js";
 
 import type { JSONSchema7 } from "@ai-sdk/provider";
-import { convertJsonSchemaToGrammar } from "./json-schema-to-grammar.js";
+import {
+  convertJsonSchemaToGrammar,
+  SchemaConverter,
+} from "./json-schema-to-grammar.js";
 
 export interface LlamaCppModelConfig {
   modelPath: string;
@@ -92,13 +96,216 @@ export function convertUsage(
 }
 
 /**
+ * Represents a parsed tool call from the model output.
+ */
+export interface ParsedToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
+/**
+ * Generate a GBNF grammar for tool calls based on the provided tool definitions.
+ * This grammar constrains the model to produce valid JSON tool calls.
+ */
+export function generateToolCallGrammar(
+  tools: LanguageModelV3FunctionTool[]
+): string {
+  // Create a grammar that allows the model to output a tool call
+  // Format: {"tool_calls":[{"id":"...","name":"...","arguments":{...}}]}
+
+  // Generate the tool-specific argument schemas
+  const toolGrammars: string[] = [];
+
+  for (const tool of tools) {
+    const converter = new SchemaConverter();
+    converter.resolveRefs(tool.inputSchema as JSONSchema7);
+    converter.visit(tool.inputSchema as JSONSchema7, `${tool.name}-args`);
+
+    // Get the grammar rules for this tool's arguments
+    const argGrammar = converter.formatGrammar();
+
+    // Extract just the rules (without the root rule)
+    const lines = argGrammar
+      .split("\n")
+      .filter((line) => line.trim() && !line.startsWith("root "));
+
+    toolGrammars.push(...lines);
+  }
+
+  // Build the complete grammar
+  const toolNameAlternatives = tools
+    .map((t) => `"\\"${t.name}\\""`)
+    .join(" | ");
+
+  // Build arguments alternatives based on tool names
+  const toolArgsAlternatives = tools.map((t) => `${t.name}-args`).join(" | ");
+
+  // Combine all grammars
+  const uniqueRules = new Map<string, string>();
+
+  // Add tool-specific argument rules
+  for (const line of toolGrammars) {
+    const match = line.match(/^(\S+)\s*::=\s*(.+)$/);
+    if (match) {
+      uniqueRules.set(match[1], match[2]);
+    }
+  }
+
+  // Build the final grammar
+  let grammar = "";
+
+  // Root rule - a tool call object
+  grammar += `root ::= "{" space tool-calls-kv "}" space\n`;
+  grammar += `tool-calls-kv ::= "\\"tool_calls\\"" space ":" space "[" space tool-call (space "," space tool-call)* space "]"\n`;
+  grammar += `tool-call ::= "{" space id-kv "," space name-kv "," space args-kv "}" space\n`;
+  grammar += `id-kv ::= "\\"id\\"" space ":" space string\n`;
+  grammar += `name-kv ::= "\\"name\\"" space ":" space tool-name\n`;
+  grammar += `tool-name ::= ${toolNameAlternatives}\n`;
+  grammar += `args-kv ::= "\\"arguments\\"" space ":" space tool-args\n`;
+  grammar += `tool-args ::= ${toolArgsAlternatives}\n`;
+
+  // Add all the tool-specific rules
+  for (const [name, rule] of uniqueRules) {
+    grammar += `${name} ::= ${rule}\n`;
+  }
+
+  // Add common rules
+  grammar += `space ::= | " " | "\\n"{1,2} [ \\t]{0,20}\n`;
+  grammar += `string ::= "\\"" char* "\\"" space\n`;
+  grammar += `char ::= [^"\\\\\\x7F\\x00-\\x1F] | [\\\\] (["\\\\bfnrt] | "u" [0-9a-fA-F]{4})\n`;
+
+  return grammar;
+}
+
+/**
+ * Parse the model output to extract tool calls.
+ * Supports multiple formats:
+ * - Single tool call: {"name": "...", "arguments": {...}}
+ * - Array of tool calls: [{"name": "...", "arguments": {...}}, ...]
+ * - Legacy format with tool_calls wrapper: {"tool_calls": [...]}
+ * Returns null if the output is not a valid tool call JSON.
+ */
+export function parseToolCalls(text: string): ParsedToolCall[] | null {
+  try {
+    const trimmed = text.trim();
+
+    // Must start with { or [ to be JSON
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+      return null;
+    }
+
+    const parsed = JSON.parse(trimmed);
+    const toolCalls: ParsedToolCall[] = [];
+
+    // Handle array format: [{"name": "...", "arguments": {...}}, ...]
+    if (Array.isArray(parsed)) {
+      for (const call of parsed) {
+        if (
+          typeof call.name === "string" &&
+          typeof call.arguments === "object"
+        ) {
+          toolCalls.push({
+            id: call.id || generateToolCallId(),
+            name: call.name,
+            arguments: call.arguments,
+          });
+        }
+      }
+      return toolCalls.length > 0 ? toolCalls : null;
+    }
+
+    // Handle single object format: {"name": "...", "arguments": {...}}
+    if (
+      typeof parsed.name === "string" &&
+      typeof parsed.arguments === "object"
+    ) {
+      return [
+        {
+          id: parsed.id || generateToolCallId(),
+          name: parsed.name,
+          arguments: parsed.arguments,
+        },
+      ];
+    }
+
+    // Handle legacy tool_calls wrapper format: {"tool_calls": [...]}
+    if (parsed.tool_calls && Array.isArray(parsed.tool_calls)) {
+      for (const call of parsed.tool_calls) {
+        if (
+          typeof call.name === "string" &&
+          typeof call.arguments === "object"
+        ) {
+          toolCalls.push({
+            id: call.id || generateToolCallId(),
+            name: call.name,
+            arguments: call.arguments,
+          });
+        }
+      }
+      return toolCalls.length > 0 ? toolCalls : null;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Generate a unique tool call ID.
+ */
+function generateToolCallId(): string {
+  return `call_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
+}
+
+/**
+ * Build a system prompt that instructs the model to use tools.
+ */
+export function buildToolSystemPrompt(
+  tools: LanguageModelV3FunctionTool[]
+): string {
+  const toolDescriptions = tools
+    .map((tool) => {
+      const params = JSON.stringify(tool.inputSchema, null, 2);
+      return `- ${tool.name}: ${tool.description || "No description"}\n  Parameters: ${params}`;
+    })
+    .join("\n\n");
+
+  return `You have access to the following tools:
+
+${toolDescriptions}
+
+When you need to use a tool, respond ONLY with a JSON object in this exact format (no other text):
+{"name": "<tool_name>", "arguments": {<tool_arguments>}}
+
+For multiple tool calls, use an array:
+[{"name": "<tool_name>", "arguments": {...}}, ...]
+
+Rules:
+- The "name" must exactly match one of the available tool names
+- The "arguments" must be a valid JSON object matching the tool's parameter schema
+- Output ONLY the JSON, no explanation or other text
+- If you don't need to use a tool, respond normally with text`;
+}
+
+/**
  * Convert AI SDK messages to simple role/content format for the native layer.
  * The native layer will apply the appropriate chat template.
  */
 export function convertMessages(
-  messages: LanguageModelV3Message[]
+  messages: LanguageModelV3Message[],
+  tools?: LanguageModelV3FunctionTool[]
 ): ChatMessage[] {
   const result: ChatMessage[] = [];
+
+  // Add tool system prompt if tools are provided
+  if (tools && tools.length > 0) {
+    result.push({
+      role: "system",
+      content: buildToolSystemPrompt(tools),
+    });
+  }
 
   for (const message of messages) {
     switch (message.role) {
@@ -123,20 +330,85 @@ export function convertMessages(
         });
         break;
       case "assistant":
-        // Extract text content from assistant messages
+        // Extract text and tool call content from assistant messages
         let assistantContent = "";
+        const toolCallParts: Array<{
+          toolCallId: string;
+          toolName: string;
+          input: unknown;
+        }> = [];
+
         for (const part of message.content) {
           if (part.type === "text") {
             assistantContent += part.text;
+          } else if (part.type === "tool-call") {
+            toolCallParts.push({
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              input: part.input,
+            });
           }
         }
-        result.push({
-          role: "assistant",
-          content: assistantContent,
-        });
+
+        // If there are tool calls, format them as JSON
+        if (toolCallParts.length > 0) {
+          const toolCallsJson = JSON.stringify({
+            tool_calls: toolCallParts.map((tc) => ({
+              id: tc.toolCallId,
+              name: tc.toolName,
+              arguments: tc.input,
+            })),
+          });
+          assistantContent = toolCallsJson;
+        }
+
+        if (assistantContent) {
+          result.push({
+            role: "assistant",
+            content: assistantContent,
+          });
+        }
         break;
       case "tool":
-        // Tool results are not supported in this implementation
+        // Handle tool results - format them as user messages with the result
+        for (const part of message.content) {
+          if (part.type === "tool-result") {
+            const output = part.output;
+            let resultText = "";
+
+            if (output.type === "text") {
+              resultText = output.value;
+            } else if (output.type === "json") {
+              resultText = JSON.stringify(output.value);
+            } else if (output.type === "error-text") {
+              resultText = `Error: ${output.value}`;
+            } else if (output.type === "error-json") {
+              resultText = `Error: ${JSON.stringify(output.value)}`;
+            } else if (output.type === "execution-denied") {
+              resultText = `Execution denied${output.reason ? `: ${output.reason}` : ""}`;
+            } else if (output.type === "content") {
+              // Convert content array to text representation
+              resultText = output.value
+                .map((item) => {
+                  if (item.type === "text") {
+                    return item.text;
+                  } else if (item.type === "file-data") {
+                    return `[File: ${item.mediaType}]`;
+                  } else if (item.type === "file-url") {
+                    return `[File URL: ${item.url}]`;
+                  } else {
+                    return `[Unknown content type]`;
+                  }
+                })
+                .join("\n");
+            }
+
+            result.push({
+              role: "user",
+              content: `Tool "${part.toolName}" (id: ${part.toolCallId}) returned:\n${resultText}`,
+            });
+          }
+        }
         break;
     }
   }
@@ -210,9 +482,23 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
   ): Promise<LanguageModelV3GenerateResult> {
     const handle = await this.ensureModelLoaded();
 
-    const messages = convertMessages(options.prompt);
+    // Extract function tools from the tools array
+    const functionTools =
+      options.tools?.filter(
+        (t): t is LanguageModelV3FunctionTool => t.type === "function"
+      ) ?? [];
+
+    const hasTools = functionTools.length > 0;
+
+    const messages = convertMessages(
+      options.prompt,
+      hasTools && options.toolChoice?.type !== "none"
+        ? functionTools
+        : undefined
+    );
 
     // Convert JSON schema to GBNF grammar if structured output is requested
+    // Note: Tool calls do NOT use grammar - the model decides whether to call tools
     let grammar: string | undefined;
     if (
       options.responseFormat?.type === "json" &&
@@ -235,20 +521,50 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
 
     const result = await generate(handle, generateOptions);
 
-    // Build content array with text content
-    const content: LanguageModelV3Content[] = [
-      {
+    const warnings: SharedV3Warning[] = [];
+    const content: LanguageModelV3Content[] = [];
+    let finishReason = convertFinishReason(result.finishReason);
+
+    // Try to parse tool calls if tools were provided
+    if (hasTools && options.toolChoice?.type !== "none") {
+      const toolCalls = parseToolCalls(result.text);
+
+      if (toolCalls && toolCalls.length > 0) {
+        // Add tool calls to content
+        for (const toolCall of toolCalls) {
+          content.push({
+            type: "tool-call",
+            toolCallId: toolCall.id || generateToolCallId(),
+            toolName: toolCall.name,
+            input: JSON.stringify(toolCall.arguments),
+          });
+        }
+
+        // Set finish reason to tool-calls
+        finishReason = {
+          unified: "tool-calls",
+          raw: "tool-calls",
+        };
+      } else {
+        // No valid tool calls found, return as text
+        content.push({
+          type: "text",
+          text: result.text,
+          providerMetadata: undefined,
+        });
+      }
+    } else {
+      // No tools, return text content
+      content.push({
         type: "text",
         text: result.text,
         providerMetadata: undefined,
-      },
-    ];
-
-    const warnings: SharedV3Warning[] = [];
+      });
+    }
 
     return {
       content,
-      finishReason: convertFinishReason(result.finishReason),
+      finishReason,
       usage: convertUsage(result.promptTokens, result.completionTokens),
       warnings,
       request: {
@@ -262,9 +578,23 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
   ): Promise<LanguageModelV3StreamResult> {
     const handle = await this.ensureModelLoaded();
 
-    const messages = convertMessages(options.prompt);
+    // Extract function tools from the tools array
+    const functionTools =
+      options.tools?.filter(
+        (t): t is LanguageModelV3FunctionTool => t.type === "function"
+      ) ?? [];
+
+    const hasTools = functionTools.length > 0;
+
+    const messages = convertMessages(
+      options.prompt,
+      hasTools && options.toolChoice?.type !== "none"
+        ? functionTools
+        : undefined
+    );
 
     // Convert JSON schema to GBNF grammar if structured output is requested
+    // Note: Tool calls do NOT use grammar - the model decides whether to call tools
     let grammar: string | undefined;
     if (
       options.responseFormat?.type === "json" &&
@@ -296,16 +626,75 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
             warnings: [],
           });
 
-          // Emit text start
-          controller.enqueue({
-            type: "text-start",
-            id: textId,
-          });
+          // Collect the full text for tool call parsing
+          let fullText = "";
+
+          // Track whether we've detected this is a tool call (to suppress text deltas)
+          let isToolCallMode = false;
+          let detectionComplete = false;
+          let textStartEmitted = false;
+          // Buffer tokens during detection phase when tools are present
+          let tokenBuffer: string[] = [];
 
           const result = await generateStream(
             handle,
             generateOptions,
             (token) => {
+              fullText += token;
+
+              // When tools are provided, detect if output looks like a tool call
+              if (hasTools && options.toolChoice?.type !== "none") {
+                if (!detectionComplete) {
+                  // Buffer tokens during detection phase
+                  tokenBuffer.push(token);
+
+                  const trimmed = fullText.trimStart();
+                  // Check if it starts with JSON object/array (tool call pattern)
+                  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+                    isToolCallMode = true;
+                    detectionComplete = true;
+                    // Don't flush buffer - suppress all tokens for tool calls
+                    return;
+                  } else if (trimmed.length > 0) {
+                    // First non-whitespace char is not JSON - it's regular text
+                    detectionComplete = true;
+                    // Flush buffered tokens as text deltas
+                    if (!textStartEmitted) {
+                      controller.enqueue({
+                        type: "text-start",
+                        id: textId,
+                      });
+                      textStartEmitted = true;
+                    }
+                    for (const bufferedToken of tokenBuffer) {
+                      controller.enqueue({
+                        type: "text-delta",
+                        id: textId,
+                        delta: bufferedToken,
+                      });
+                    }
+                    tokenBuffer = [];
+                    return;
+                  }
+                  // Still in detection phase (only whitespace so far)
+                  return;
+                }
+
+                // If in tool call mode, don't emit text deltas
+                if (isToolCallMode) {
+                  return;
+                }
+              }
+
+              // Emit text start on first actual text delta
+              if (!textStartEmitted) {
+                controller.enqueue({
+                  type: "text-start",
+                  id: textId,
+                });
+                textStartEmitted = true;
+              }
+
               controller.enqueue({
                 type: "text-delta",
                 id: textId,
@@ -314,16 +703,45 @@ export class LlamaCppLanguageModel implements LanguageModelV3 {
             }
           );
 
-          // Emit text end
-          controller.enqueue({
-            type: "text-end",
-            id: textId,
-          });
+          // Emit text end if we started text
+          if (textStartEmitted) {
+            controller.enqueue({
+              type: "text-end",
+              id: textId,
+            });
+          }
+
+          // Check for tool calls if tools were provided
+          let finishReason = convertFinishReason(result.finishReason);
+
+          if (hasTools && options.toolChoice?.type !== "none") {
+            const toolCalls = parseToolCalls(fullText);
+
+            if (toolCalls && toolCalls.length > 0) {
+              // Emit tool call events
+              for (const toolCall of toolCalls) {
+                const toolCallId = toolCall.id || generateToolCallId();
+
+                controller.enqueue({
+                  type: "tool-call",
+                  toolCallId,
+                  toolName: toolCall.name,
+                  input: JSON.stringify(toolCall.arguments),
+                });
+              }
+
+              // Set finish reason to tool-calls
+              finishReason = {
+                unified: "tool-calls",
+                raw: "tool-calls",
+              };
+            }
+          }
 
           // Emit finish
           controller.enqueue({
             type: "finish",
-            finishReason: convertFinishReason(result.finishReason),
+            finishReason,
             usage: convertUsage(result.promptTokens, result.completionTokens),
           });
 

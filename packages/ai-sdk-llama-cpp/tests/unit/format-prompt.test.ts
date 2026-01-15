@@ -109,7 +109,7 @@ describe("convertMessages", () => {
   });
 
   describe("tool messages", () => {
-    it("ignores tool messages (not supported)", () => {
+    it("converts tool result message to user message format", () => {
       const messages: LanguageModelV3Message[] = [
         {
           role: "tool",
@@ -118,7 +118,10 @@ describe("convertMessages", () => {
               type: "tool-result",
               toolCallId: "call_123",
               toolName: "get_weather",
-              result: { temperature: 72 },
+              output: {
+                type: "json",
+                value: { temperature: 72 },
+              },
             },
           ],
         },
@@ -126,8 +129,101 @@ describe("convertMessages", () => {
 
       const result = convertMessages(messages);
 
-      // Should return empty array since tool messages are ignored
-      expect(result).toEqual([]);
+      // Tool results are converted to user messages
+      expect(result).toEqual([
+        {
+          role: "user",
+          content:
+            'Tool "get_weather" (id: call_123) returned:\n{"temperature":72}',
+        },
+      ]);
+    });
+
+    it("handles text output from tool result", () => {
+      const messages: LanguageModelV3Message[] = [
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call_456",
+              toolName: "search",
+              output: {
+                type: "text",
+                value: "Search result: found 10 items",
+              },
+            },
+          ],
+        },
+      ];
+
+      const result = convertMessages(messages);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content:
+            'Tool "search" (id: call_456) returned:\nSearch result: found 10 items',
+        },
+      ]);
+    });
+
+    it("handles error output from tool result", () => {
+      const messages: LanguageModelV3Message[] = [
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call_789",
+              toolName: "api_call",
+              output: {
+                type: "error-text",
+                value: "Connection refused",
+              },
+            },
+          ],
+        },
+      ];
+
+      const result = convertMessages(messages);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content:
+            'Tool "api_call" (id: call_789) returned:\nError: Connection refused',
+        },
+      ]);
+    });
+
+    it("handles execution-denied output from tool result", () => {
+      const messages: LanguageModelV3Message[] = [
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call_abc",
+              toolName: "dangerous_action",
+              output: {
+                type: "execution-denied",
+                reason: "User denied permission",
+              },
+            },
+          ],
+        },
+      ];
+
+      const result = convertMessages(messages);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content:
+            'Tool "dangerous_action" (id: call_abc) returned:\nExecution denied: User denied permission',
+        },
+      ]);
     });
   });
 
