@@ -34,9 +34,6 @@ xcode-select --install
 
 # Install CMake via Homebrew
 brew install cmake
-
-# Optional: Install clang-format for code formatting (development only)
-brew install clang-format
 ```
 
 ## Installation
@@ -326,68 +323,9 @@ This is a minimal implementation with the following limitations:
 - **macOS only**: Windows and Linux are not supported
 - **No image inputs**: Only text prompts are supported
 
-## Monorepo Structure
+## Contributing
 
-This repository is organized as a pnpm monorepo:
-
-```
-├── packages/
-│   └── ai-sdk-llama-cpp/    # Main library package
-├── tests/
-│   └── e2e/                 # End-to-end tests
-├── examples/
-│   └── basic/               # Basic usage examples
-├── pnpm-workspace.yaml
-└── package.json
-```
-
-## Development
-
-### Building from Source
-
-```bash
-# Clone the repository
-git clone https://github.com/lgrammel/ai-sdk-llama-cpp.git
-cd ai-sdk-llama-cpp
-
-# Install pnpm (if not already installed)
-npm install -g pnpm
-
-# Install dependencies
-pnpm install
-
-# Build the native addon and TypeScript
-pnpm build
-```
-
-### Scripts
-
-- `pnpm build` - Build everything (native + TypeScript)
-- `pnpm build:native` - Build only the native addon
-- `pnpm build:ts` - Build only TypeScript
-- `pnpm clean` - Remove build artifacts
-- `pnpm test` - Run tests in watch mode
-- `pnpm test:run` - Run all tests once
-- `pnpm test:unit` - Run unit tests
-- `pnpm test:integration` - Run integration tests
-- `pnpm test:e2e` - Run end-to-end tests
-- `pnpm test:coverage` - Run tests with coverage
-- `pnpm format:check` - Check code formatting (requires clang-format)
-- `pnpm format:fix` - Fix code formatting (requires clang-format)
-
-### Running Examples
-
-```bash
-# Run examples from the root
-pnpm --filter @examples/basic generate-text
-pnpm --filter @examples/basic stream-text
-pnpm --filter @examples/basic generate-text-tool-call
-pnpm --filter @examples/basic stream-text-tool-call
-
-# Or from the examples/basic directory
-cd examples/basic
-pnpm generate-text
-```
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and contribution guidelines.
 
 ## License
 
