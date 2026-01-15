@@ -379,7 +379,7 @@ pnpm build
 # Run examples from the root
 pnpm --filter @examples/basic generate-text
 pnpm --filter @examples/basic stream-text
-pnpm --filter @examples/basic tool-call
+pnpm --filter @examples/basic generate-text-tool-call
 
 # Or from the examples/basic directory
 cd examples/basic

@@ -331,5 +331,5 @@ const result = await generateText({
 
 Run the tool calling example:
 ```bash
-pnpm --filter @examples/basic tool-call
+pnpm --filter @examples/basic generate-text-tool-call
 ```
