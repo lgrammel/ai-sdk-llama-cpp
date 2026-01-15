@@ -14,6 +14,7 @@ This package loads llama.cpp directly into Node.js memory via native C++ binding
 - **GPU Acceleration**: Automatic Metal support on macOS
 - **Streaming & Non-streaming**: Full support for both `generateText` and `streamText`
 - **Structured Output**: Generate JSON objects with schema validation using `generateObject`
+- **Tool/Function Calling**: Support for AI SDK tools with GBNF grammar constraints
 - **Chat Templates**: Automatic or configurable chat template formatting (llama3, chatml, gemma, etc.)
 - **ESM Only**: Modern ECMAScript modules, no CommonJS
 - **GGUF Support**: Load any GGUF-format model
@@ -150,6 +151,46 @@ The structured output feature uses GBNF grammar constraints to ensure the model 
 - **String formats**: `date`, `time`, `date-time`, `uuid`
 - **References**: Local `$ref` to `$defs`/`definitions`
 
+### Tool Calling Example
+
+Use AI SDK tools with local models. The model output is constrained using GBNF grammar to ensure valid tool call JSON:
+
+```typescript
+import { generateText, tool } from "ai";
+import { z } from "zod";
+import { llamaCpp } from "ai-sdk-llama-cpp";
+
+const model = llamaCpp({
+  modelPath: "./models/llama-3.2-1b-instruct.Q4_K_M.gguf",
+});
+
+try {
+  const result = await generateText({
+    model,
+    prompt: "What's the weather in Tokyo?",
+    tools: {
+      getWeather: tool({
+        description: "Get the current weather for a city",
+        parameters: z.object({
+          city: z.string().describe("The city name"),
+        }),
+        execute: async ({ city }) => {
+          // Your weather API call here
+          return { temperature: 22, condition: "sunny" };
+        },
+      }),
+    },
+    maxSteps: 2, // Allow tool call and follow-up response
+  });
+
+  console.log(result.text);
+} finally {
+  await model.dispose();
+}
+```
+
+> **Note**: Tool calling quality depends on the model. Models fine-tuned for function calling (e.g., Llama 3.1+, Hermes, Functionary) work best.
+
 ### Embedding Example
 
 ```typescript
@@ -281,7 +322,6 @@ Implements the `LanguageModelV3` interface from `@ai-sdk/provider`.
 This is a minimal implementation with the following limitations:
 
 - **macOS only**: Windows and Linux are not supported
-- **No tool/function calling**: Tool calls are not supported
 - **No image inputs**: Only text prompts are supported
 
 ## Monorepo Structure
@@ -339,6 +379,7 @@ pnpm build
 # Run examples from the root
 pnpm --filter @examples/basic generate-text
 pnpm --filter @examples/basic stream-text
+pnpm --filter @examples/basic tool-call
 
 # Or from the examples/basic directory
 cd examples/basic

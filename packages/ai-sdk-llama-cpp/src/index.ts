@@ -11,6 +11,11 @@ export {
   convertMessages,
   convertFinishReason,
   convertUsage,
+  // Tool calling exports
+  generateToolCallGrammar,
+  parseToolCalls,
+  buildToolSystemPrompt,
+  type ParsedToolCall,
 } from "./llama-cpp-language-model.js";
 export { LlamaCppEmbeddingModel } from "./llama-cpp-embedding-model.js";
 

@@ -7,7 +7,8 @@
     "generate-text-output": "tsx src/generate-text-output.ts",
     "stream-text": "tsx src/stream-text.ts",
     "chatbot": "tsx src/chatbot.ts",
-    "embed-many": "tsx src/embed-many.ts"
+    "embed-many": "tsx src/embed-many.ts",
+    "tool-call": "tsx src/tool-call.ts"
   },
   "dependencies": {
     "ai": "^6.0.3",

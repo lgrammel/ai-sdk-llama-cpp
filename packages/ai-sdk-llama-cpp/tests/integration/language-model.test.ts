@@ -121,7 +121,7 @@ describe("LlamaCppLanguageModel Integration", () => {
         prompt: testMessages,
       });
 
-      expect(result.request.body).toHaveProperty("maxTokens", 256);
+      expect(result.request.body).toHaveProperty("maxTokens", 2048);
     });
 
     it("applies default temperature when not specified", async () => {
