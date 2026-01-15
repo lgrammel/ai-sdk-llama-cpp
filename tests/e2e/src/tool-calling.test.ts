@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { generateText, tool } from "ai";
-import { z } from "zod";
+import { generateText, tool, stepCountIs } from "ai";
+import { z } from "zod/v4";
 import { llamaCpp, LlamaCppLanguageModel } from "ai-sdk-llama-cpp";
 
 /**
@@ -66,7 +66,7 @@ describeE2E("E2E Tool Calling Tests", () => {
           tools: {
             get_weather: tool({
               description: "Get the current weather for a city",
-              parameters: z.object({
+              inputSchema: z.object({
                 city: z.string().describe("The city name"),
               }),
               execute: async ({ city }) => {
@@ -77,7 +77,7 @@ describeE2E("E2E Tool Calling Tests", () => {
               },
             }),
           },
-          maxSteps: 1, // Only generate tool call, don't execute
+          stopWhen: stepCountIs(1), // Only generate tool call, don't execute
         });
 
         // With grammar constraint, the model should generate a tool call
@@ -99,7 +99,7 @@ describeE2E("E2E Tool Calling Tests", () => {
           get_weather: tool({
             description:
               "Get the current weather for a city. Returns temperature and condition.",
-            parameters: z.object({
+            inputSchema: z.object({
               city: z.string().describe("The city name to get weather for"),
             }),
             execute: async ({ city }) => {
@@ -114,7 +114,7 @@ describeE2E("E2E Tool Calling Tests", () => {
             },
           }),
         },
-        maxSteps: 2, // Allow tool call and follow-up
+        stopWhen: stepCountIs(2), // Allow tool call and follow-up
       });
 
       // The model should have tried to call the tool
@@ -144,7 +144,7 @@ describeE2E("E2E Tool Calling Tests", () => {
           tools: {
             search: tool({
               description: "Search for information",
-              parameters: z.object({
+              inputSchema: z.object({
                 query: z.string().describe("The search query"),
                 limit: z
                   .number()
@@ -160,7 +160,7 @@ describeE2E("E2E Tool Calling Tests", () => {
               },
             }),
           },
-          maxSteps: 2,
+          stopWhen: stepCountIs(2),
         });
 
         expect(result).toBeDefined();
@@ -177,7 +177,7 @@ describeE2E("E2E Tool Calling Tests", () => {
         tools: {
           get_weather: tool({
             description: "Get weather",
-            parameters: z.object({ city: z.string() }),
+            inputSchema: z.object({ city: z.string() }),
             execute: async () => ({ temperature: 20 }),
           }),
         },
@@ -205,12 +205,12 @@ describeE2E("E2E Tool Calling Tests", () => {
         tools: {
           get_weather: tool({
             description: "Get weather for a city",
-            parameters: z.object({ city: z.string() }),
+            inputSchema: z.object({ city: z.string() }),
             execute: async () => ({ temperature: 20 }),
           }),
           calculator: tool({
             description: "Perform mathematical calculations",
-            parameters: z.object({
+            inputSchema: z.object({
               expression: z
                 .string()
                 .describe("The math expression to evaluate"),
@@ -222,7 +222,7 @@ describeE2E("E2E Tool Calling Tests", () => {
             },
           }),
         },
-        maxSteps: 2,
+        stopWhen: stepCountIs(2),
       });
 
       expect(result).toBeDefined();
