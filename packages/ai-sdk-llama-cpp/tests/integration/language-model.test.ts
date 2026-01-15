@@ -112,8 +112,8 @@ describe("LlamaCppLanguageModel Integration", () => {
       });
 
       expect(result.request).toHaveProperty("body");
-      expect(result.request.body).toHaveProperty("messages");
-      expect(result.request.body).toHaveProperty("maxTokens", 256);
+      expect(result.request!.body).toHaveProperty("messages");
+      expect(result.request!.body).toHaveProperty("maxTokens", 256);
     });
 
     it("applies default maxTokens when not specified", async () => {
@@ -121,7 +121,7 @@ describe("LlamaCppLanguageModel Integration", () => {
         prompt: testMessages,
       });
 
-      expect(result.request.body).toHaveProperty("maxTokens", 2048);
+      expect(result.request!.body).toHaveProperty("maxTokens", 2048);
     });
 
     it("applies default temperature when not specified", async () => {
@@ -129,7 +129,7 @@ describe("LlamaCppLanguageModel Integration", () => {
         prompt: testMessages,
       });
 
-      expect(result.request.body).toHaveProperty("temperature", 0.7);
+      expect(result.request!.body).toHaveProperty("temperature", 0.7);
     });
 
     it("passes custom generation options", async () => {
@@ -192,7 +192,7 @@ describe("LlamaCppLanguageModel Integration", () => {
       });
 
       expect(result.request).toHaveProperty("body");
-      expect(result.request.body).toHaveProperty("maxTokens", 100);
+      expect(result.request!.body).toHaveProperty("maxTokens", 100);
     });
 
     it("emits stream-start as first part", async () => {

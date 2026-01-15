@@ -13,7 +13,7 @@ try {
     tools: {
       weather: tool({
         description: "Get the weather in a location",
-        parameters: z.object({
+        inputSchema: z.object({
           location: z.string().describe("The location to get weather for"),
         }),
         execute: async ({ location }) => ({

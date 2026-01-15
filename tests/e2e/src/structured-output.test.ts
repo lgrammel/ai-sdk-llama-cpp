@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { generateText, streamText, Output } from "ai";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { llamaCpp, LlamaCppLanguageModel } from "ai-sdk-llama-cpp";
 
 /**
@@ -55,7 +55,7 @@ describeE2E("E2E Structured Output Tests", () => {
           model,
           output: Output.object({ schema }),
           prompt: "Generate a person named Alice who is 30 years old.",
-          maxTokens: 100,
+          maxOutputTokens: 100,
         });
 
         expect(output).toBeDefined();
@@ -81,7 +81,7 @@ describeE2E("E2E Structured Output Tests", () => {
           output: Output.object({ schema }),
           prompt:
             'Generate a book titled "AI Basics" by John Smith with email john@example.com',
-          maxTokens: 150,
+          maxOutputTokens: 150,
         });
 
         expect(output).toBeDefined();
@@ -103,7 +103,7 @@ describeE2E("E2E Structured Output Tests", () => {
           model,
           output: Output.object({ schema }),
           prompt: "List 3 colors: red, blue, green.",
-          maxTokens: 100,
+          maxOutputTokens: 100,
         });
 
         expect(output).toBeDefined();
@@ -124,7 +124,7 @@ describeE2E("E2E Structured Output Tests", () => {
           model,
           output: Output.object({ schema }),
           prompt: "Generate a status. Set it to active.",
-          maxTokens: 50,
+          maxOutputTokens: 50,
         });
 
         expect(output).toBeDefined();
@@ -144,7 +144,7 @@ describeE2E("E2E Structured Output Tests", () => {
           model,
           output: Output.object({ schema }),
           prompt: "Generate an object where isEnabled is true.",
-          maxTokens: 50,
+          maxOutputTokens: 50,
         });
 
         expect(output).toBeDefined();
@@ -165,7 +165,7 @@ describeE2E("E2E Structured Output Tests", () => {
           model,
           output: Output.object({ schema }),
           prompt: 'Generate an object with required_field set to "hello".',
-          maxTokens: 100,
+          maxOutputTokens: 100,
         });
 
         expect(output).toBeDefined();
@@ -190,7 +190,7 @@ describeE2E("E2E Structured Output Tests", () => {
         output: Output.object({ schema }),
         prompt:
           "Generate a simple recipe for toast with butter. Include 2 ingredients and 2 steps.",
-        maxTokens: 300,
+        maxOutputTokens: 300,
       });
 
       expect(output).toBeDefined();
@@ -215,7 +215,7 @@ describeE2E("E2E Structured Output Tests", () => {
         model,
         output: Output.object({ schema }),
         prompt: 'Generate a greeting message saying "Hello World".',
-        maxTokens: 50,
+        maxOutputTokens: 50,
       });
 
       let lastOutput: z.infer<typeof schema> | undefined;
@@ -239,7 +239,7 @@ describeE2E("E2E Structured Output Tests", () => {
           model,
           output: Output.object({ schema }),
           prompt: "Generate an object with value set to 42.",
-          maxTokens: 50,
+          maxOutputTokens: 50,
         });
 
         // Consume the stream
@@ -248,8 +248,8 @@ describeE2E("E2E Structured Output Tests", () => {
         }
 
         const usage = await result.usage;
-        expect(usage.promptTokens).toBeGreaterThan(0);
-        expect(usage.completionTokens).toBeGreaterThan(0);
+        expect(usage.inputTokens).toBeGreaterThan(0);
+        expect(usage.outputTokens).toBeGreaterThan(0);
       }
     );
   });
@@ -269,7 +269,7 @@ describeE2E("E2E Structured Output Tests", () => {
         output: Output.object({ schema }),
         prompt:
           'Generate an object with field1="a", field2="b", field3="c", field4=1, field5=true',
-        maxTokens: 150,
+        maxOutputTokens: 150,
       });
 
       expect(output).toBeDefined();
@@ -289,7 +289,7 @@ describeE2E("E2E Structured Output Tests", () => {
         model,
         output: Output.object({ schema }),
         prompt: "Generate an object with an empty items array.",
-        maxTokens: 50,
+        maxOutputTokens: 50,
       });
 
       expect(output).toBeDefined();
