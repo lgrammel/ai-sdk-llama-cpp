@@ -25,12 +25,14 @@ describeE2E("E2E Tool Calling Tests", () => {
   let model: LlamaCppLanguageModel;
 
   // Fake weather data for testing
-  const weatherData: Record<string, { temperature: number; condition: string }> =
-    {
-      tokyo: { temperature: 22, condition: "cloudy" },
-      paris: { temperature: 18, condition: "rainy" },
-      "new york": { temperature: 25, condition: "sunny" },
-    };
+  const weatherData: Record<
+    string,
+    { temperature: number; condition: string }
+  > = {
+    tokyo: { temperature: 22, condition: "cloudy" },
+    paris: { temperature: 18, condition: "rainy" },
+    "new york": { temperature: 25, condition: "sunny" },
+  };
 
   beforeAll(() => {
     if (!TEST_MODEL_PATH) {
@@ -52,31 +54,38 @@ describeE2E("E2E Tool Calling Tests", () => {
   });
 
   describe("tool call generation", () => {
-    it("generates tool call with grammar constraint", { timeout: 120000 }, async () => {
-      const result = await generateText({
-        model,
-        prompt: "What is the weather in Tokyo? Use the get_weather tool to find out.",
-        maxOutputTokens: 500,
-        tools: {
-          get_weather: tool({
-            description: "Get the current weather for a city",
-            parameters: z.object({
-              city: z.string().describe("The city name"),
+    it(
+      "generates tool call with grammar constraint",
+      { timeout: 120000 },
+      async () => {
+        const result = await generateText({
+          model,
+          prompt:
+            "What is the weather in Tokyo? Use the get_weather tool to find out.",
+          maxOutputTokens: 500,
+          tools: {
+            get_weather: tool({
+              description: "Get the current weather for a city",
+              parameters: z.object({
+                city: z.string().describe("The city name"),
+              }),
+              execute: async ({ city }) => {
+                const normalizedCity = city.toLowerCase();
+                return (
+                  weatherData[normalizedCity] || { error: "City not found" }
+                );
+              },
             }),
-            execute: async ({ city }) => {
-              const normalizedCity = city.toLowerCase();
-              return weatherData[normalizedCity] || { error: "City not found" };
-            },
-          }),
-        },
-        maxSteps: 1, // Only generate tool call, don't execute
-      });
+          },
+          maxSteps: 1, // Only generate tool call, don't execute
+        });
 
-      // With grammar constraint, the model should generate a tool call
-      // Check if the result contains tool calls or text (depending on model capability)
-      expect(result).toBeDefined();
-      expect(result.finishReason).toBeDefined();
-    });
+        // With grammar constraint, the model should generate a tool call
+        // Check if the result contains tool calls or text (depending on model capability)
+        expect(result).toBeDefined();
+        expect(result.finishReason).toBeDefined();
+      }
+    );
 
     it("executes tool and returns result", { timeout: 120000 }, async () => {
       let toolWasCalled = false;
@@ -88,7 +97,8 @@ describeE2E("E2E Tool Calling Tests", () => {
         maxOutputTokens: 500,
         tools: {
           get_weather: tool({
-            description: "Get the current weather for a city. Returns temperature and condition.",
+            description:
+              "Get the current weather for a city. Returns temperature and condition.",
             parameters: z.object({
               city: z.string().describe("The city name to get weather for"),
             }),
@@ -96,7 +106,11 @@ describeE2E("E2E Tool Calling Tests", () => {
               toolWasCalled = true;
               receivedCity = city;
               const normalizedCity = city.toLowerCase();
-              return weatherData[normalizedCity] || { error: `Weather not found for ${city}` };
+              return (
+                weatherData[normalizedCity] || {
+                  error: `Weather not found for ${city}`,
+                }
+              );
             },
           }),
         },
@@ -106,45 +120,52 @@ describeE2E("E2E Tool Calling Tests", () => {
       // The model should have tried to call the tool
       // Note: Success depends on model quality
       expect(result).toBeDefined();
-      
+
       if (result.steps && result.steps.length > 0) {
         // Check if any step had tool calls
         const hasToolCalls = result.steps.some(
           (step) => step.toolCalls && step.toolCalls.length > 0
         );
-        
+
         if (hasToolCalls) {
           expect(toolWasCalled).toBe(true);
         }
       }
     });
 
-    it("handles tool with multiple parameters", { timeout: 120000 }, async () => {
-      const result = await generateText({
-        model,
-        prompt: "Search for 'llama.cpp' with a limit of 5 results",
-        maxOutputTokens: 500,
-        tools: {
-          search: tool({
-            description: "Search for information",
-            parameters: z.object({
-              query: z.string().describe("The search query"),
-              limit: z.number().optional().describe("Maximum number of results"),
+    it(
+      "handles tool with multiple parameters",
+      { timeout: 120000 },
+      async () => {
+        const result = await generateText({
+          model,
+          prompt: "Search for 'llama.cpp' with a limit of 5 results",
+          maxOutputTokens: 500,
+          tools: {
+            search: tool({
+              description: "Search for information",
+              parameters: z.object({
+                query: z.string().describe("The search query"),
+                limit: z
+                  .number()
+                  .optional()
+                  .describe("Maximum number of results"),
+              }),
+              execute: async ({ query, limit }) => {
+                return {
+                  query,
+                  limit: limit || 10,
+                  results: ["Result 1", "Result 2", "Result 3"],
+                };
+              },
             }),
-            execute: async ({ query, limit }) => {
-              return {
-                query,
-                limit: limit || 10,
-                results: ["Result 1", "Result 2", "Result 3"],
-              };
-            },
-          }),
-        },
-        maxSteps: 2,
-      });
+          },
+          maxSteps: 2,
+        });
 
-      expect(result).toBeDefined();
-    });
+        expect(result).toBeDefined();
+      }
+    );
   });
 
   describe("tool choice options", () => {
@@ -190,7 +211,9 @@ describeE2E("E2E Tool Calling Tests", () => {
           calculator: tool({
             description: "Perform mathematical calculations",
             parameters: z.object({
-              expression: z.string().describe("The math expression to evaluate"),
+              expression: z
+                .string()
+                .describe("The math expression to evaluate"),
             }),
             execute: async ({ expression }) => {
               // Safe evaluation for simple expressions
@@ -221,7 +244,9 @@ describe("E2E Tool Calling Test Configuration", () => {
         "   Note: Use a model fine-tuned for function calling for best results\n"
       );
     } else {
-      console.log(`\n✅ Running tool calling E2E tests with model: ${TEST_MODEL_PATH}\n`);
+      console.log(
+        `\n✅ Running tool calling E2E tests with model: ${TEST_MODEL_PATH}\n`
+      );
     }
     expect(true).toBe(true);
   });
