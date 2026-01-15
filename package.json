@@ -2,9 +2,13 @@
   "name": "ai-sdk-llama-cpp-monorepo",
   "private": true,
   "devDependencies": {
+    "@changesets/cli": "^2.29.8",
     "prettier": "^3.4.2"
   },
   "scripts": {
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:publish": "pnpm build:ts && changeset publish",
     "build": "pnpm -r build",
     "build:ts": "pnpm -r build:ts",
     "build:native": "pnpm --filter ai-sdk-llama-cpp build:native",
