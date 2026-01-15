@@ -239,36 +239,47 @@ try {
 - **Async/Await**: Preferred over raw Promises
 - **Error handling**: Use try/finally for model lifecycle management
 
-## Key APIs
+## Architecture & Internal Structure
 
-### Provider Factory
+### Core Components
 
-```typescript
-import { llamaCpp } from "ai-sdk-llama-cpp";
+| File | Purpose |
+|------|---------|
+| `llama-cpp-provider.ts` | Factory function `llamaCpp()` - creates model instances, handles config |
+| `llama-cpp-language-model.ts` | `LanguageModelV3` implementation - `doGenerate()`, `doStream()`, tool call handling |
+| `llama-cpp-embedding-model.ts` | `EmbeddingModelV1` implementation for embeddings |
+| `native-binding.ts` | TypeScript bindings to the native C++ addon |
+| `json-schema-to-grammar.ts` | Converts JSON Schema to GBNF grammar for structured output |
+| `index.ts` | Public exports |
 
-const model = llamaCpp({
-  modelPath: string,        // Required: path to GGUF file
-  contextSize?: number,     // Default: 2048
-  gpuLayers?: number,       // Default: 99 (all layers)
-  threads?: number,         // Default: 4
-  debug?: boolean,          // Default: false
-  chatTemplate?: string,    // Default: "auto"
-});
-```
+### Native Layer (C++)
 
-### Model Methods
+| File | Purpose |
+|------|---------|
+| `binding.cpp` | N-API binding layer - exposes C++ functions to Node.js |
+| `llama-wrapper.cpp` | Wraps llama.cpp API - model loading, inference, tokenization |
+| `llama-wrapper.h` | Header file for the wrapper |
 
-- `model.doGenerate(options)` - Non-streaming generation
-- `model.doStream(options)` - Streaming generation
-- `model.dispose()` - Free resources (always call when done)
+### Key Implementation Details
 
-### AI SDK Integration
+- **Tool calling**: Implemented in `llama-cpp-language-model.ts` via GBNF grammar constraints. The `buildToolCallGrammar()` function generates grammar that forces valid JSON tool call output. Tool call detection happens in both `doGenerate()` and `doStream()`.
 
-Works with standard AI SDK functions:
-- `generateText()` - Non-streaming text generation
-- `streamText()` - Streaming text generation
-- `generateObject()` - Structured output with schema
-- `Output.object({ schema })` - For structured output mode
+- **Structured output**: Uses `json-schema-to-grammar.ts` to convert Zod schemas (via JSON Schema) to GBNF grammars. Supports primitives, objects, arrays, enums, and composition (`oneOf`, `anyOf`, `allOf`).
+
+- **Streaming**: Native addon yields tokens via callback. `doStream()` converts these to AI SDK stream format with proper chunk types (`text-delta`, `tool-call`, `finish`).
+
+- **Chat templates**: Applied in native layer via llama.cpp's built-in template system. The `chatTemplate` config option is passed through to the native binding.
+
+- **Resource management**: Model memory is managed in C++. `dispose()` must be called to free GPU/CPU resources. The native binding handles cleanup.
+
+### Data Flow
+
+1. User calls `generateText()` / `streamText()` with AI SDK
+2. AI SDK calls `doGenerate()` / `doStream()` on `LlamaCppLanguageModel`
+3. Language model formats prompt using chat template
+4. If tools/schema provided, GBNF grammar is generated
+5. Native binding calls llama.cpp for inference
+6. Results are parsed and returned in AI SDK format
 
 ## Common Tasks
 
@@ -302,34 +313,3 @@ Works with standard AI SDK functions:
 
 - macOS only (Windows/Linux not supported)
 - No image input support (text only)
-
-## Tool/Function Calling
-
-Tool calling is supported via GBNF grammar constraints. The model output is constrained to produce valid JSON tool call structures. This works best with models fine-tuned for function calling (e.g., Llama 3.1+, Hermes, Functionary, Qwen 2.5).
-
-Example usage:
-```typescript
-import { generateText, tool } from "ai";
-import { z } from "zod";
-import { llamaCpp } from "ai-sdk-llama-cpp";
-
-const model = llamaCpp({ modelPath: "./models/model.gguf" });
-
-const result = await generateText({
-  model,
-  prompt: "What's the weather in Tokyo?",
-  tools: {
-    getWeather: tool({
-      description: "Get weather for a city",
-      parameters: z.object({ city: z.string() }),
-      execute: async ({ city }) => ({ temperature: 22, condition: "sunny" }),
-    }),
-  },
-  maxSteps: 2,
-});
-```
-
-Run the tool calling example:
-```bash
-pnpm --filter @examples/basic generate-text-tool-call
-```
