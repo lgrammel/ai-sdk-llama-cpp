@@ -28,7 +28,8 @@ LlamaModel::~LlamaModel() {
 
 LlamaModel::LlamaModel(LlamaModel &&other) noexcept
     : model_(other.model_), ctx_(other.ctx_), sampler_(other.sampler_),
-      model_path_(std::move(other.model_path_)), chat_template_(std::move(other.chat_template_)) {
+      model_path_(std::move(other.model_path_)), chat_template_(std::move(other.chat_template_)),
+      n_batch_(other.n_batch_) {
   other.model_ = nullptr;
   other.ctx_ = nullptr;
   other.sampler_ = nullptr;
@@ -42,6 +43,7 @@ LlamaModel &LlamaModel::operator=(LlamaModel &&other) noexcept {
     sampler_ = other.sampler_;
     model_path_ = std::move(other.model_path_);
     chat_template_ = std::move(other.chat_template_);
+    n_batch_ = other.n_batch_;
     other.model_ = nullptr;
     other.ctx_ = nullptr;
     other.sampler_ = nullptr;
@@ -121,6 +123,9 @@ bool LlamaModel::create_context(const ContextParams &params) {
   }
 
   ctx_ = llama_init_from_model(model_, ctx_params);
+  if (ctx_) {
+    n_batch_ = params.n_batch; // Store batch size for chunked prefill
+  }
   return ctx_ != nullptr;
 }
 
@@ -360,11 +365,19 @@ GenerationResult LlamaModel::generate(const std::vector<ChatMessage> &messages,
   // Create sampler
   create_sampler(params);
 
-  // Create batch for prompt processing
-  llama_batch batch = llama_batch_get_one(prompt_tokens.data(), prompt_tokens.size());
+  // Process prompt in chunks if it exceeds batch size (chunked prefill)
+  size_t n_tokens = prompt_tokens.size();
+  size_t n_processed = 0;
 
-  if (llama_decode(ctx_, batch) != 0) {
-    return result;
+  while (n_processed < n_tokens) {
+    size_t n_chunk = std::min(static_cast<size_t>(n_batch_), n_tokens - n_processed);
+    llama_batch batch = llama_batch_get_one(prompt_tokens.data() + n_processed, n_chunk);
+
+    if (llama_decode(ctx_, batch) != 0) {
+      return result;
+    }
+
+    n_processed += n_chunk;
   }
 
   // Generate tokens
@@ -403,8 +416,8 @@ GenerationResult LlamaModel::generate(const std::vector<ChatMessage> &messages,
       break;
 
     // Prepare for next iteration
-    batch = llama_batch_get_one(&new_token, 1);
-    if (llama_decode(ctx_, batch) != 0) {
+    llama_batch token_batch = llama_batch_get_one(&new_token, 1);
+    if (llama_decode(ctx_, token_batch) != 0) {
       break;
     }
     n_cur++;
@@ -450,11 +463,19 @@ GenerationResult LlamaModel::generate_streaming(const std::vector<ChatMessage> &
   // Create sampler
   create_sampler(params);
 
-  // Create batch for prompt processing
-  llama_batch batch = llama_batch_get_one(prompt_tokens.data(), prompt_tokens.size());
+  // Process prompt in chunks if it exceeds batch size (chunked prefill)
+  size_t n_tokens = prompt_tokens.size();
+  size_t n_processed = 0;
 
-  if (llama_decode(ctx_, batch) != 0) {
-    return result;
+  while (n_processed < n_tokens) {
+    size_t n_chunk = std::min(static_cast<size_t>(n_batch_), n_tokens - n_processed);
+    llama_batch batch = llama_batch_get_one(prompt_tokens.data() + n_processed, n_chunk);
+
+    if (llama_decode(ctx_, batch) != 0) {
+      return result;
+    }
+
+    n_processed += n_chunk;
   }
 
   // Generate tokens
@@ -497,8 +518,8 @@ GenerationResult LlamaModel::generate_streaming(const std::vector<ChatMessage> &
       break;
 
     // Prepare for next iteration
-    batch = llama_batch_get_one(&new_token, 1);
-    if (llama_decode(ctx_, batch) != 0) {
+    llama_batch token_batch = llama_batch_get_one(&new_token, 1);
+    if (llama_decode(ctx_, token_batch) != 0) {
       break;
     }
     n_cur++;

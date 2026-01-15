@@ -108,6 +108,7 @@ private:
   llama_sampler *sampler_ = nullptr;
   std::string model_path_;
   std::string chat_template_;
+  int n_batch_ = 512; // Batch size for prompt processing
 
   // Tokenize a string
   std::vector<int32_t> tokenize(const std::string &text, bool add_bos);
