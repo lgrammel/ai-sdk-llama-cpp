@@ -49,18 +49,31 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^4.0.16
         version: 4.0.17(vitest@4.0.17(@opentelemetry/api@1.9.0)(@types/node@20.19.29)(tsx@4.21.0))
-      ai:
-        specifier: ^6.0.3
-        version: 6.0.37(zod@4.3.5)
       typescript:
         specifier: ^5.3.0
         version: 5.9.3
       vitest:
         specifier: ^4.0.16
         version: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@20.19.29)(tsx@4.21.0)
+
+  tests/e2e:
+    dependencies:
+      ai:
+        specifier: ^6.0.3
+        version: 6.0.37(zod@4.3.5)
+      ai-sdk-llama-cpp:
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk-llama-cpp
       zod:
         specifier: ^4.3.5
         version: 4.3.5
+    devDependencies:
+      '@types/node':
+        specifier: ^20.10.0
+        version: 20.19.29
+      vitest:
+        specifier: ^4.0.16
+        version: 4.0.17(@opentelemetry/api@1.9.0)(@types/node@20.19.29)(tsx@4.21.0)
 
 packages:
 
