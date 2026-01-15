@@ -505,10 +505,7 @@ describe("LlamaCppLanguageModel Integration", () => {
       expect(result.content[0].type).toBe("tool-call");
       expect(result.content[0]).toHaveProperty("toolName", "get_weather");
       expect(result.content[0]).toHaveProperty("toolCallId");
-      expect(result.content[0]).toHaveProperty(
-        "input",
-        '{"location":"Tokyo"}'
-      );
+      expect(result.content[0]).toHaveProperty("input", '{"location":"Tokyo"}');
     });
 
     it("returns tool-calls finish reason when tool call detected", async () => {
